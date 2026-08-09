@@ -1,0 +1,94 @@
+﻿{
+    "elements":  [
+                     {
+                         "id":  12,
+                         "web_name":  "Saka",
+                         "team":  1,
+                         "element_type":  3,
+                         "now_cost":  95,
+                         "form":  "0.0",
+                         "status":  "a"
+                     },
+                     {
+                         "id":  154,
+                         "web_name":  "Palmer",
+                         "team":  6,
+                         "element_type":  3,
+                         "now_cost":  95,
+                         "form":  "0.0",
+                         "status":  "a"
+                     },
+                     {
+                         "id":  379,
+                         "web_name":  "Isak",
+                         "team":  14,
+                         "element_type":  4,
+                         "now_cost":  90,
+                         "form":  "0.0",
+                         "status":  "a"
+                     },
+                     {
+                         "id":  411,
+                         "web_name":  "Haaland",
+                         "team":  15,
+                         "element_type":  4,
+                         "now_cost":  155,
+                         "form":  "0.0",
+                         "status":  "a"
+                     },
+                     {
+                         "id":  426,
+                         "web_name":  "B.Fernandes",
+                         "team":  16,
+                         "element_type":  3,
+                         "now_cost":  120,
+                         "form":  "0.0",
+                         "status":  "a"
+                     }
+                 ],
+    "teams":  [
+                  {
+                      "id":  1,
+                      "name":  "Arsenal",
+                      "short_name":  "ARS"
+                  },
+                  {
+                      "id":  6,
+                      "name":  "Chelsea",
+                      "short_name":  "CHE"
+                  },
+                  {
+                      "id":  14,
+                      "name":  "Liverpool",
+                      "short_name":  "LIV"
+                  },
+                  {
+                      "id":  15,
+                      "name":  "Man City",
+                      "short_name":  "MCI"
+                  },
+                  {
+                      "id":  16,
+                      "name":  "Man Utd",
+                      "short_name":  "MUN"
+                  }
+              ],
+    "element_types":  [
+                          {
+                              "id":  1,
+                              "singular_name_short":  "GKP"
+                          },
+                          {
+                              "id":  2,
+                              "singular_name_short":  "DEF"
+                          },
+                          {
+                              "id":  3,
+                              "singular_name_short":  "MID"
+                          },
+                          {
+                              "id":  4,
+                              "singular_name_short":  "FWD"
+                          }
+                      ]
+}
