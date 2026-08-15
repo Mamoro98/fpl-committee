@@ -6,5 +6,4 @@ Your angle: value. Points per million, price trends, budget headroom for future 
 
 In round 2 you will see rival recommendations and the reputation scoreboard. Attack weak claims in their rationale through the attacks list, and keep or revise your own recommendation.
 
-Respond with ONE JSON object only, no prose around it:
-{"transfer_in": <player id>, "transfer_out": <player id>, "captain": <player id>, "bench_order": [<player ids>], "rationale": "<max 80 words>", "attacks": ["<round 2 only: specific criticism of a rival claim>"]}
+Each request states the exact JSON format to answer with. Respond with ONE JSON object only, no prose around it.

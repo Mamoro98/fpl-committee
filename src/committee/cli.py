@@ -4,6 +4,8 @@ from pathlib import Path
 
 from committee.agents import AGENTS
 from committee.debate import run_debate
+from committee.draft import run_draft_debate
+from committee.draft_memo import render_draft_memo
 from committee.fpl import FplClient
 from committee.ledger import Ledger
 from committee.llm import LlmClient
@@ -48,7 +50,12 @@ def build_context(players, gw: int) -> str:
     return (
         f"Gameweek {gw}. Recommend ONE transfer (out, in), a captain, and a bench "
         "order, using only players from this list. Low owned= values are "
-        "differentials.\n" + "\n".join(lines)
+        "differentials.\n"
+        + "\n".join(lines)
+        + '\n\nRespond with ONE JSON object only:\n{"transfer_in": <player id>, '
+        '"transfer_out": <player id>, "captain": <player id>, "bench_order": '
+        '[<player ids>], "rationale": "<max 80 words>", "attacks": '
+        '["<round 2 only: specific criticism of a rival claim>"]}'
     )
 
 
@@ -108,6 +115,19 @@ def cmd_settle(args) -> None:
         print(f"{agent}: {score:.2f}")
 
 
+def cmd_draft(args) -> None:
+    fpl = FplClient()
+    client = LlmClient()
+    ledger = load_ledger()
+    players = fpl.get_players()
+    result = run_draft_debate(client, players, ledger)
+
+    MEMOS_DIR.mkdir(exist_ok=True)
+    memo = render_draft_memo(result, ledger, players)
+    (MEMOS_DIR / "draft.md").write_text(memo, encoding="utf-8")
+    print(memo)
+
+
 def main(argv=None) -> None:
     parser = argparse.ArgumentParser(prog="committee")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -120,6 +140,9 @@ def main(argv=None) -> None:
     p_pick.add_argument("agent", choices=AGENTS)
     p_pick.add_argument("--gw", type=int, required=True)
     p_pick.set_defaults(func=cmd_pick)
+
+    p_draft = sub.add_parser("draft", help="one-off debate: full GW1 squad + formation")
+    p_draft.set_defaults(func=cmd_draft)
 
     p_settle = sub.add_parser("settle", help="apply real points to the picked agent")
     p_settle.add_argument("--gw", type=int, required=True)

@@ -40,7 +40,13 @@ def system_prompt(name: str) -> str:
     return (PROMPTS_DIR / f"{name}.md").read_text(encoding="utf-8")
 
 
-def run_agent(name: str, client, context: str, model: str | None = None) -> Suggestion:
+def run_agent(
+    name: str,
+    client,
+    context: str,
+    model: str | None = None,
+    response_model: type[BaseModel] = Suggestion,
+):
     model = model or DEFAULT_MODELS[name]
     system = system_prompt(name)
     last_error = None
@@ -49,7 +55,7 @@ def run_agent(name: str, client, context: str, model: str | None = None) -> Sugg
         try:
             data = _extract_json(raw)
             data["agent"] = name
-            return Suggestion(**data)
+            return response_model(**data)
         except (ValueError, json.JSONDecodeError, ValidationError) as exc:
             last_error = exc
     raise AgentResponseError(f"{name} returned invalid JSON twice: {last_error}")
