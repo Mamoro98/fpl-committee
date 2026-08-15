@@ -16,8 +16,10 @@ class Ledger:
     def scores(self) -> dict[str, float]:
         return dict(self._scores)
 
-    def record_pick(self, gw: int, agent: str) -> None:
-        self._history.append({"gw": gw, "picked": agent, "reward": None})
+    def record_pick(self, gw: int, agent: str, suggestion: dict | None = None) -> None:
+        self._history.append(
+            {"gw": gw, "picked": agent, "reward": None, "suggestion": suggestion}
+        )
 
     def settle(self, gw: int, reward: float) -> None:
         entry = next(e for e in self._history if e["gw"] == gw)

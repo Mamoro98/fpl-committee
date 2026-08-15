@@ -2,6 +2,7 @@ import httpx
 from pydantic import BaseModel
 
 BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
+LIVE_URL = "https://fantasy.premierleague.com/api/event/{gw}/live/"
 
 
 class Player(BaseModel):
@@ -19,6 +20,15 @@ class FplClient:
         response = httpx.get(BOOTSTRAP_URL, timeout=30)
         response.raise_for_status()
         return response.json()
+
+    def _fetch_live(self, gw: int) -> dict:
+        response = httpx.get(LIVE_URL.format(gw=gw), timeout=30)
+        response.raise_for_status()
+        return response.json()
+
+    def get_gw_points(self, gw: int) -> dict[int, int]:
+        data = self._fetch_live(gw)
+        return {e["id"]: e["stats"]["total_points"] for e in data["elements"]}
 
     def get_players(self) -> list[Player]:
         data = self._fetch_bootstrap()
