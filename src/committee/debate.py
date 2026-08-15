@@ -16,8 +16,9 @@ def _round2_context(
         f"{base}\n\n"
         f"ROUND 2. Rival recommendations from round 1:\n{rival_block}\n\n"
         f"Current reputation scores:\n{scoreboard}\n\n"
-        "Attack weak claims in rival recommendations (fill the attacks list), "
-        "then give your final recommendation. Keep or change your round 1 pick."
+        "Attack the weakest specific claim of EACH rival by name, quoting the "
+        "claim, in the attacks list. State plainly if a rival changed your mind. "
+        "Then give your final recommendation, kept or changed."
     )
 
 
