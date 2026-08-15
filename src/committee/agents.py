@@ -11,7 +11,7 @@ AGENTS = ["scout", "risk", "hawk"]
 DEFAULT_MODELS = {
     "scout": "openai/gpt-5-mini",
     "risk": "deepseek/deepseek-v3.2",
-    "hawk": "google/gemini-2.5-flash",
+    "hawk": "google/gemini-3.7-flash",
 }
 
 
