@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -27,6 +28,35 @@ INDEX_PATH = Path(__file__).parent / "static" / "index.html"
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
     return INDEX_PATH.read_text(encoding="utf-8")
+
+
+@app.get("/api/squad")
+def squad() -> dict:
+    entry_id = os.environ.get("FPL_ENTRY_ID")
+    if not entry_id:
+        return {"squad": None, "reason": "FPL_ENTRY_ID is not set in .env"}
+    fpl = FplClient()
+    gw = fpl.get_current_gw()
+    if gw is None:
+        return {"squad": None, "reason": "season has not started yet"}
+    snapshot = fpl.get_squad(int(entry_id), gw)
+    if snapshot is None:
+        return {"squad": None, "reason": f"no public picks for GW{gw} yet"}
+
+    lookup = {p.id: p for p in fpl.get_players()}
+    players = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "team": p.team,
+            "position": p.position,
+            "price": p.price,
+            "status": p.status,
+        }
+        for pid in snapshot.player_ids
+        if (p := lookup.get(pid))
+    ]
+    return {"squad": players, "bank": snapshot.bank, "gw": gw}
 
 
 @app.get("/api/scoreboard")

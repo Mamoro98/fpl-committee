@@ -56,6 +56,15 @@ class FplClient:
             bank=data["entry_history"]["bank"] / 10,
         )
 
+    def get_current_gw(self) -> int | None:
+        """Latest gameweek with public data. None before the season starts."""
+        data = self._fetch_bootstrap()
+        current = [e["id"] for e in data["events"] if e.get("is_current")]
+        if current:
+            return current[0]
+        finished = [e["id"] for e in data["events"] if e.get("finished")]
+        return finished[-1] if finished else None
+
     def get_players(self) -> list[Player]:
         data = self._fetch_bootstrap()
         teams = {t["id"]: t["name"] for t in data["teams"]}
