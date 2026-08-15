@@ -5,7 +5,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
 from committee.agents import AGENTS
-from committee.cli import LEDGER_PATH, MEMOS_DIR, build_context, load_ledger
+from committee.cli import (
+    LEDGER_PATH,
+    MEMOS_DIR,
+    build_context,
+    get_squad_for_gw,
+    load_ledger,
+)
 from committee.debate import run_debate
 from committee.draft import run_draft_debate
 from committee.draft_memo import render_draft_memo
@@ -49,7 +55,8 @@ def memo(gw: int) -> dict:
     client = LlmClient()
     ledger = load_ledger()
     players = fpl.get_players()
-    context = build_context(players, gw)
+    squad = get_squad_for_gw(fpl, gw)
+    context = build_context(players, gw, squad=squad)
     result = run_debate(client, context, ledger)
 
     MEMOS_DIR.mkdir(exist_ok=True)
