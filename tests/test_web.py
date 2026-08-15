@@ -51,24 +51,11 @@ def test_pick_records_and_double_pick_409s(client, tmp_path):
     assert ledger.history()[0]["picked"] == "scout"
 
 
-def test_squad_endpoint_without_entry_id(client, monkeypatch):
+def test_squad_endpoint_empty_state_invites_manual_entry(client, monkeypatch):
     monkeypatch.delenv("FPL_ENTRY_ID", raising=False)
     data = client.get("/api/squad").json()
     assert data["squad"] is None
-    assert "FPL_ENTRY_ID" in data["reason"]
-
-
-def test_squad_endpoint_preseason(client, monkeypatch):
-    monkeypatch.setenv("FPL_ENTRY_ID", "12345")
-
-    class FakeFpl:
-        def get_current_gw(self):
-            return None
-
-    monkeypatch.setattr(web, "FplClient", FakeFpl)
-    data = client.get("/api/squad").json()
-    assert data["squad"] is None
-    assert "season" in data["reason"]
+    assert "Paste your team" in data["reason"]
 
 
 def test_squad_endpoint_returns_players(client, monkeypatch):
@@ -104,6 +91,68 @@ def test_squad_endpoint_returns_players(client, monkeypatch):
     assert data["gw"] == 3
     assert data["bank"] == 2.0
     assert data["squad"][0]["name"] == "Haaland"
+
+
+def make_players():
+    from committee.fpl import Player
+
+    names = [
+        ("Haaland", "FWD"), ("Isak", "FWD"), ("Watkins", "FWD"),
+        ("Saka", "MID"), ("Palmer", "MID"), ("Salah", "MID"), ("Rice", "MID"), ("Rogers", "MID"),
+        ("Gabriel", "DEF"), ("Timber", "DEF"), ("Senesi", "DEF"), ("Munoz", "DEF"), ("Romero", "DEF"),
+        ("Raya", "GKP"), ("Sels", "GKP"),
+    ]
+    return [
+        Player(id=i + 1, name=n, team=f"Club{i % 8}", position=pos, price=6.0,
+               form=0.0, status="a", ownership=20.0, total_points=0)
+        for i, (n, pos) in enumerate(names)
+    ]
+
+
+def test_manual_squad_roundtrip(client, monkeypatch):
+    monkeypatch.delenv("FPL_ENTRY_ID", raising=False)
+
+    class FakeFpl:
+        def get_players(self):
+            return make_players()
+
+        def get_current_gw(self):
+            return None
+
+    monkeypatch.setattr(web, "FplClient", FakeFpl)
+
+    names = [p.name for p in make_players()]
+    r = client.post("/api/squad/manual", json={"names": names, "bank": 1.5}).json()
+    assert r["ok"] is True
+
+    data = client.get("/api/squad").json()
+    assert data["source"] == "manual"
+    assert data["bank"] == 1.5
+    assert len(data["squad"]) == 15
+
+
+def test_manual_squad_reports_unmatched(client, monkeypatch):
+    class FakeFpl:
+        def get_players(self):
+            return make_players()
+
+    monkeypatch.setattr(web, "FplClient", FakeFpl)
+    r = client.post(
+        "/api/squad/manual", json={"names": ["Hааland-typo"], "bank": 0}
+    ).json()
+    assert r["ok"] is False
+    assert r["unmatched"][0]["name"] == "Hааland-typo"
+
+
+def test_manual_squad_requires_15(client, monkeypatch):
+    class FakeFpl:
+        def get_players(self):
+            return make_players()
+
+    monkeypatch.setattr(web, "FplClient", FakeFpl)
+    r = client.post("/api/squad/manual", json={"names": ["Haaland"], "bank": 0}).json()
+    assert r["ok"] is False
+    assert "15 players" in r["detail"]
 
 
 def test_settle_applies_reward(client, tmp_path, monkeypatch):

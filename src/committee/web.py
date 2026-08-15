@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 from committee.agents import AGENTS
 from committee.cli import (
@@ -18,6 +19,7 @@ from committee.draft import run_draft_debate
 from committee.draft_memo import render_draft_memo
 from committee.fpl import FplClient
 from committee.llm import LlmClient
+from committee.manual import load_manual_squad, resolve_names, save_manual_squad
 from committee.memo import render_memo
 
 app = FastAPI(title="fpl-committee")
@@ -30,21 +32,8 @@ def index() -> str:
     return INDEX_PATH.read_text(encoding="utf-8")
 
 
-@app.get("/api/squad")
-def squad() -> dict:
-    entry_id = os.environ.get("FPL_ENTRY_ID")
-    if not entry_id:
-        return {"squad": None, "reason": "FPL_ENTRY_ID is not set in .env"}
-    fpl = FplClient()
-    gw = fpl.get_current_gw()
-    if gw is None:
-        return {"squad": None, "reason": "season has not started yet"}
-    snapshot = fpl.get_squad(int(entry_id), gw)
-    if snapshot is None:
-        return {"squad": None, "reason": f"no public picks for GW{gw} yet"}
-
-    lookup = {p.id: p for p in fpl.get_players()}
-    players = [
+def _squad_players(snapshot, lookup) -> list[dict]:
+    return [
         {
             "id": p.id,
             "name": p.name,
@@ -56,7 +45,60 @@ def squad() -> dict:
         for pid in snapshot.player_ids
         if (p := lookup.get(pid))
     ]
-    return {"squad": players, "bank": snapshot.bank, "gw": gw}
+
+
+@app.get("/api/squad")
+def squad() -> dict:
+    fpl = FplClient()
+    entry_id = os.environ.get("FPL_ENTRY_ID")
+    gw = fpl.get_current_gw() if entry_id else None
+    if entry_id and gw is not None:
+        snapshot = fpl.get_squad(int(entry_id), gw)
+        if snapshot is not None:
+            lookup = {p.id: p for p in fpl.get_players()}
+            return {
+                "squad": _squad_players(snapshot, lookup),
+                "bank": snapshot.bank,
+                "gw": gw,
+                "source": "fpl",
+            }
+
+    manual = load_manual_squad()
+    if manual is not None:
+        lookup = {p.id: p for p in fpl.get_players()}
+        return {
+            "squad": _squad_players(manual, lookup),
+            "bank": manual.bank,
+            "gw": None,
+            "source": "manual",
+        }
+
+    return {
+        "squad": None,
+        "reason": "No squad yet. Paste your team below, or wait for GW1 to be played",
+    }
+
+
+class ManualSquadPayload(BaseModel):
+    names: list[str]
+    bank: float
+
+
+@app.post("/api/squad/manual")
+def set_manual_squad(payload: ManualSquadPayload) -> dict:
+    players = FplClient().get_players()
+    resolved, unmatched = resolve_names(payload.names, players)
+    if unmatched:
+        return {"ok": False, "unmatched": unmatched, "matched": len(resolved)}
+    if len(resolved) != 15:
+        return {
+            "ok": False,
+            "unmatched": [],
+            "matched": len(resolved),
+            "detail": f"a squad is 15 players, you gave {len(resolved)}",
+        }
+    save_manual_squad([p.id for p in resolved], payload.bank)
+    return {"ok": True, "matched": len(resolved)}
 
 
 @app.get("/api/scoreboard")

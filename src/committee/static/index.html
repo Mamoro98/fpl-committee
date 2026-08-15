@@ -233,7 +233,16 @@ async function refreshSquad() {
   const r = await fetch("/api/squad");
   const data = await r.json();
   if (!data.squad) {
-    $("squad").innerHTML = `<span style="color:var(--chalk-dim)">${data.reason}.</span>`;
+    $("squad").innerHTML = `
+      <p style="color:var(--chalk-dim); margin-top:0;">${data.reason}.</p>
+      <textarea id="squad-names" rows="8" placeholder="One player name per line, 15 names.&#10;Haaland&#10;Saka&#10;..." style="width:100%;background:var(--board-deep);color:var(--chalk);border:1px solid var(--line);border-radius:4px;padding:0.6rem;font:0.9rem Barlow,sans-serif;"></textarea>
+      <div style="display:flex;gap:0.6rem;margin-top:0.6rem;align-items:center;">
+        <label class="display" style="color:var(--chalk-dim);" for="squad-bank">Bank</label>
+        <input type="number" id="squad-bank" step="0.1" min="0" value="0.0" style="width:5.2rem;">
+        <button id="squad-save">Save team</button>
+      </div>
+      <p id="squad-msg" style="color:var(--chalk-dim);"></p>`;
+    $("squad-save").onclick = saveManualSquad;
     return;
   }
   const order = ["GKP", "DEF", "MID", "FWD"];
@@ -243,8 +252,27 @@ async function refreshSquad() {
     ).join("");
     return `<div class="posrow"><span class="poslabel">${pos}</span>${chips}</div>`;
   }).join("");
+  const sourceNote = data.source === "manual"
+    ? "entered by hand, replaced by FPL data after GW1"
+    : `as of GW${data.gw}`;
   $("squad").innerHTML =
-    rows + `<div class="posrow"><span class="poslabel">BANK</span><span class="num">${data.bank}m</span> <span style="color:var(--chalk-dim)">(as of GW${data.gw})</span></div>`;
+    rows + `<div class="posrow"><span class="poslabel">BANK</span><span class="num">${data.bank}m</span> <span style="color:var(--chalk-dim)">(${sourceNote})</span></div>`;
+}
+
+async function saveManualSquad() {
+  const names = $("squad-names").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const bank = parseFloat($("squad-bank").value || "0");
+  const r = await fetch("/api/squad/manual", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ names, bank }),
+  });
+  const data = await r.json();
+  if (data.ok) { refreshSquad(); return; }
+  if (data.detail) { $("squad-msg").textContent = data.detail; return; }
+  $("squad-msg").innerHTML = "Could not match: " + data.unmatched.map(u =>
+    `<strong>${u.name}</strong>${u.candidates.length ? " (did you mean: " + u.candidates.join(" / ") + ")" : ""}`
+  ).join(", ");
 }
 
 async function longPost(url, label) {

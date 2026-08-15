@@ -29,10 +29,14 @@ DIFFERENTIAL_OWNERSHIP = 10.0
 
 
 def get_squad_for_gw(fpl: FplClient, gw: int):
+    from committee.manual import load_manual_squad
+
     entry_id = os.environ.get("FPL_ENTRY_ID")
-    if not entry_id or gw <= 1:
-        return None
-    return fpl.get_squad(int(entry_id), gw - 1)
+    if entry_id and gw > 1:
+        squad = fpl.get_squad(int(entry_id), gw - 1)
+        if squad is not None:
+            return squad
+    return load_manual_squad()
 
 
 def build_context(players, gw: int, squad=None) -> str:
