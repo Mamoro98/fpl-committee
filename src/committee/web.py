@@ -16,11 +16,11 @@ from committee.cli import (
 )
 from committee.debate import run_debate
 from committee.draft import run_draft_debate
-from committee.draft_memo import render_draft_memo
+from committee.draft_memo import draft_thread, render_draft_memo
 from committee.fpl import FplClient
 from committee.llm import LlmClient
 from committee.manual import load_manual_squad, resolve_names, save_manual_squad
-from committee.memo import render_memo
+from committee.memo import debate_thread, render_memo
 
 app = FastAPI(title="fpl-committee")
 
@@ -118,7 +118,7 @@ def draft() -> dict:
     MEMOS_DIR.mkdir(exist_ok=True)
     memo = render_draft_memo(result, ledger, players)
     (MEMOS_DIR / "draft.md").write_text(memo, encoding="utf-8")
-    return {"memo": memo}
+    return {"memo": memo, "thread": draft_thread(result, players)}
 
 
 @app.post("/api/memo/{gw}")
@@ -141,7 +141,7 @@ def memo(gw: int) -> dict:
         ),
         encoding="utf-8",
     )
-    return {"memo": text, "agents": AGENTS}
+    return {"memo": text, "agents": AGENTS, "thread": debate_thread(result, names)}
 
 
 @app.post("/api/pick/{gw}/{agent}")

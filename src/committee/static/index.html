@@ -115,6 +115,25 @@
   #status.error { color: var(--foul); }
   #status.error::before { content: "✕ "; }
 
+  /* Debate thread */
+  #thread { margin-top: 1.25rem; }
+  #thread:empty { display: none; }
+  #thread .roundhead {
+    font-family: "Barlow Condensed", sans-serif; text-transform: uppercase;
+    color: var(--chalk-dim); letter-spacing: 0.08em; margin: 1rem 0 0.5rem;
+    border-bottom: 1px dashed var(--line); padding-bottom: 0.25rem;
+  }
+  .turn {
+    border-left: 3px solid var(--line); padding: 0.5rem 0.8rem; margin: 0.5rem 0;
+    background: color-mix(in srgb, var(--board) 70%, var(--board-deep));
+  }
+  .turn .who {
+    font-family: "Barlow Condensed", sans-serif; text-transform: capitalize;
+    font-weight: 600; letter-spacing: 0.04em;
+  }
+  .turn .attack { color: var(--foul); margin: 0.3rem 0 0; }
+  .turn .attack::before { content: "⚔ "; }
+
   /* Minutes (memo) */
   #memo { margin-top: 1.25rem; }
   #memo:empty { display: none; }
@@ -166,6 +185,7 @@
       </div>
       <div id="pickrow" hidden><span class="display" style="color: var(--chalk-dim);">Your pick:</span></div>
       <p id="status"></p>
+      <section id="thread"></section>
       <article id="memo"></article>
     </section>
   </div>
@@ -209,6 +229,25 @@ function renderMarkdown(md) {
   if (inTable) html += "</table>";
   if (listOpen) html += "</ul>";
   return html;
+}
+
+function renderThread(thread) {
+  if (!thread || !thread.length) { $("thread").innerHTML = ""; return; }
+  let html = "", lastRound = 0;
+  for (const turn of thread) {
+    if (turn.round !== lastRound) {
+      lastRound = turn.round;
+      html += `<div class="roundhead">Round ${turn.round}${turn.round === 2 ? ": attacks and final positions" : ": opening positions"}</div>`;
+    }
+    const attacks = (turn.attacks || []).map(a => `<p class="attack">${a}</p>`).join("");
+    html += `
+      <div class="turn" style="border-left-color:${AGENT_COLORS[turn.agent] || "var(--line)"}">
+        <span class="who">${turn.agent}</span>
+        <p style="margin:0.25rem 0 0;">${turn.text}</p>
+        ${attacks}
+      </div>`;
+  }
+  $("thread").innerHTML = html;
 }
 
 async function refreshStandings() {
@@ -294,6 +333,7 @@ $("btn-memo").onclick = async () => {
   const gw = $("gw").value;
   try {
     const data = await longPost(`/api/memo/${gw}`, `Committee is debating GW${gw}. A minute or two.`);
+    renderThread(data.thread);
     $("memo").innerHTML = renderMarkdown(data.memo);
     $("pickrow").hidden = false;
     $("pickrow").querySelectorAll("button").forEach(b => b.remove());
@@ -318,6 +358,7 @@ $("btn-memo").onclick = async () => {
 $("btn-draft").onclick = async () => {
   try {
     const data = await longPost("/api/draft", "Drafting three full squads. A few minutes.");
+    renderThread(data.thread);
     $("memo").innerHTML = renderMarkdown(data.memo);
     $("pickrow").hidden = true;
     status("Draft minutes are in. Advice only, nothing is scored.");

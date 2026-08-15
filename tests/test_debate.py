@@ -57,6 +57,18 @@ def test_memo_contains_agents_scoreboard_and_attacks():
     assert "committee pick" in memo
 
 
+def test_debate_thread_orders_rounds_and_carries_attacks():
+    from committee.memo import debate_thread
+
+    _, _, result = make_result_and_ledger()
+    thread = debate_thread(result, players={1: "Haaland", 2: "Palmer"})
+
+    assert [t["round"] for t in thread] == [1, 1, 1, 2, 2, 2]
+    assert "Haaland" in thread[0]["text"]
+    assert thread[3]["attacks"] == ["rival ignores rotation"]
+    assert "attacks" not in thread[0]
+
+
 def test_memo_resolves_player_names_when_given():
     _, ledger, result = make_result_and_ledger()
     memo = render_memo(result, ledger, gw=1, players={1: "Haaland", 2: "Palmer"})
