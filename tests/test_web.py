@@ -212,6 +212,35 @@ def test_unknown_job_404s(client):
     assert client.get("/api/job/nope").status_code == 404
 
 
+def test_debates_archive_lists_and_serves_saved_debate(client, tmp_path):
+    memos = tmp_path / "memos"
+    memos.mkdir()
+    (memos / "gw3.md").write_text("# Committee memo, GW3", encoding="utf-8")
+    (memos / "gw3_thread.json").write_text(
+        json.dumps([{"round": 1, "agent": "scout", "text": "OUT a, IN b"}]),
+        encoding="utf-8",
+    )
+    (memos / "gw3_suggestions.json").write_text(json.dumps({"scout": SUGGESTION}))
+    (memos / "draft.md").write_text("# Committee draft memo", encoding="utf-8")
+
+    listing = client.get("/api/debates").json()["debates"]
+    assert [d["name"] for d in listing] == ["draft", "gw3"]
+
+    detail = client.get("/api/debates/gw3").json()
+    assert detail["thread"][0]["agent"] == "scout"
+    assert detail["can_pick"] is True
+    assert "GW3" in detail["memo"]
+
+    client.post("/api/pick/3/scout")
+    assert client.get("/api/debates/gw3").json()["can_pick"] is False
+    assert client.get("/api/debates").json()["debates"][1]["picked"] == "scout"
+
+
+def test_debate_detail_rejects_bad_names(client):
+    assert client.get("/api/debates/evil-path").status_code == 400
+    assert client.get("/api/debates/gw99").status_code == 404
+
+
 def test_settle_applies_reward(client, tmp_path, monkeypatch):
     memos = tmp_path / "memos"
     memos.mkdir()

@@ -150,6 +150,60 @@ def scoreboard() -> dict:
     return {"scores": ledger.scores(), "history": ledger.history()}
 
 
+@app.get("/api/debates")
+def debates() -> dict:
+    ledger = load_ledger()
+    picks = {e["gw"]: e for e in ledger.history()}
+    items = []
+    if (MEMOS_DIR / "draft.md").exists():
+        items.append({"name": "draft", "label": "Squad draft", "picked": None, "reward": None})
+    for path in sorted(MEMOS_DIR.glob("gw*.md")):
+        stem = path.stem
+        if not stem[2:].isdigit():
+            continue
+        gw = int(stem[2:])
+        entry = picks.get(gw)
+        items.append(
+            {
+                "name": stem,
+                "label": f"GW{gw}",
+                "gw": gw,
+                "picked": entry["picked"] if entry else None,
+                "reward": entry["reward"] if entry else None,
+            }
+        )
+    return {"debates": items}
+
+
+@app.get("/api/debates/{name}")
+def debate_detail(name: str) -> dict:
+    if name != "draft" and not (name.startswith("gw") and name[2:].isdigit()):
+        raise HTTPException(400, "name must be 'draft' or 'gw<N>'")
+    memo_path = MEMOS_DIR / f"{name}.md"
+    if not memo_path.exists():
+        raise HTTPException(404, f"no saved debate called {name}")
+    thread_path = MEMOS_DIR / f"{name}_thread.json"
+    thread = (
+        json.loads(thread_path.read_text(encoding="utf-8"))
+        if thread_path.exists()
+        else []
+    )
+    can_pick = False
+    gw = None
+    if name.startswith("gw"):
+        gw = int(name[2:])
+        ledger = load_ledger()
+        already = any(e["gw"] == gw for e in ledger.history())
+        can_pick = not already and (MEMOS_DIR / f"{name}_suggestions.json").exists()
+    return {
+        "memo": memo_path.read_text(encoding="utf-8"),
+        "thread": thread,
+        "agents": AGENTS,
+        "gw": gw,
+        "can_pick": can_pick,
+    }
+
+
 def _do_draft() -> dict:
     fpl = FplClient()
     client = LlmClient()
@@ -159,8 +213,12 @@ def _do_draft() -> dict:
 
     MEMOS_DIR.mkdir(exist_ok=True)
     memo = render_draft_memo(result, ledger, players)
+    thread = draft_thread(result, players)
     (MEMOS_DIR / "draft.md").write_text(memo, encoding="utf-8")
-    return {"memo": memo, "thread": draft_thread(result, players)}
+    (MEMOS_DIR / "draft_thread.json").write_text(
+        json.dumps(thread, indent=2), encoding="utf-8"
+    )
+    return {"memo": memo, "thread": thread}
 
 
 @app.post("/api/draft")
@@ -180,14 +238,18 @@ def _do_memo(gw: int) -> dict:
     MEMOS_DIR.mkdir(exist_ok=True)
     names = {p.id: p.name for p in players}
     text = render_memo(result, ledger, gw, players=names)
+    thread = debate_thread(result, names)
     (MEMOS_DIR / f"gw{gw}.md").write_text(text, encoding="utf-8")
+    (MEMOS_DIR / f"gw{gw}_thread.json").write_text(
+        json.dumps(thread, indent=2), encoding="utf-8"
+    )
     (MEMOS_DIR / f"gw{gw}_suggestions.json").write_text(
         json.dumps(
             {agent: s.model_dump() for agent, s in result["final"].items()}, indent=2
         ),
         encoding="utf-8",
     )
-    return {"memo": text, "agents": AGENTS, "thread": debate_thread(result, names)}
+    return {"memo": text, "agents": AGENTS, "thread": thread}
 
 
 @app.post("/api/memo/{gw}")

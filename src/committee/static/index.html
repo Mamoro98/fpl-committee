@@ -103,6 +103,17 @@
   button:disabled { opacity: 0.45; cursor: wait; }
   button:focus-visible, input:focus-visible { outline: 2px solid var(--armband); outline-offset: 2px; }
 
+  #archive .item {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; text-align: left; background: transparent; border: 0;
+    border-top: 1px dashed var(--line); border-radius: 0;
+    color: var(--chalk); padding: 0.5rem 0.2rem; font: 500 0.95rem Barlow, sans-serif;
+    text-transform: none; letter-spacing: 0;
+  }
+  #archive .item:hover { background: var(--line); }
+  #archive .item.active { color: var(--armband); }
+  #archive .meta { color: var(--chalk-dim); font-size: 0.8rem; }
+
   #pickrow { margin-top: 0.8rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
   #pickrow[hidden] { display: none; }
   #pickrow button { border-width: 2px; background: transparent; color: var(--chalk); }
@@ -170,6 +181,10 @@
     <section class="panel" id="squad-panel" style="margin-top: 1.25rem;">
       <h2>Team sheet</h2>
       <div id="squad"></div>
+    </section>
+    <section class="panel" style="margin-top: 1.25rem;">
+      <h2>Archive</h2>
+      <div id="archive"><span style="color:var(--chalk-dim)">No debates yet. Run one.</span></div>
     </section>
   </div>
 
@@ -351,28 +366,62 @@ async function runJob(url, label) {
   }
 }
 
+function showPickRow(gw, agents) {
+  $("pickrow").hidden = false;
+  $("pickrow").querySelectorAll("button").forEach(b => b.remove());
+  for (const agent of agents) {
+    const b = document.createElement("button");
+    b.textContent = agent;
+    b.className = agent;
+    b.onclick = async () => {
+      try {
+        await longPost(`/api/pick/${gw}/${agent}`, "Recording your pick.");
+        status(`GW${gw}: ${agent} it is. Now make the real transfer in the FPL app.`);
+        $("pickrow").hidden = true;
+        refreshStandings();
+        refreshArchive(`gw${gw}`);
+      } catch (e) { status(e.message, true); }
+    };
+    $("pickrow").appendChild(b);
+  }
+}
+
+async function refreshArchive(activeName) {
+  const r = await fetch("/api/debates");
+  const data = await r.json();
+  if (!data.debates.length) return;
+  $("archive").innerHTML = data.debates.map(d => {
+    const meta = d.picked
+      ? `${d.picked}${d.reward !== null ? " +" + d.reward : ""}`
+      : (d.name === "draft" ? "advice" : "no pick");
+    return `<button class="item${d.name === activeName ? " active" : ""}" data-name="${d.name}">
+      <span>${d.label}</span><span class="meta">${meta}</span></button>`;
+  }).join("");
+  $("archive").querySelectorAll(".item").forEach(b => {
+    b.onclick = () => openDebate(b.dataset.name);
+  });
+}
+
+async function openDebate(name) {
+  const r = await fetch(`/api/debates/${name}`);
+  const data = await r.json();
+  if (!r.ok) { status(data.detail || "could not load debate", true); return; }
+  renderThread(data.thread);
+  $("memo").innerHTML = renderMarkdown(data.memo);
+  if (data.can_pick) showPickRow(data.gw, data.agents);
+  else $("pickrow").hidden = true;
+  refreshArchive(name);
+  status(name === "draft" ? "Squad draft, advice only." : `Viewing ${name.toUpperCase()} debate.`);
+}
+
 $("btn-memo").onclick = async () => {
   const gw = $("gw").value;
   try {
     const data = await runJob(`/api/memo/${gw}`, `Committee is debating GW${gw}.`);
     renderThread(data.thread);
     $("memo").innerHTML = renderMarkdown(data.memo);
-    $("pickrow").hidden = false;
-    $("pickrow").querySelectorAll("button").forEach(b => b.remove());
-    for (const agent of data.agents) {
-      const b = document.createElement("button");
-      b.textContent = agent;
-      b.className = agent;
-      b.onclick = async () => {
-        try {
-          await longPost(`/api/pick/${gw}/${agent}`, "Recording your pick.");
-          status(`GW${gw}: ${agent} it is. Now make the real transfer in the FPL app.`);
-          $("pickrow").hidden = true;
-          refreshStandings();
-        } catch (e) { status(e.message, true); }
-      };
-      $("pickrow").appendChild(b);
-    }
+    showPickRow(gw, data.agents);
+    refreshArchive(`gw${gw}`);
     status(`GW${gw} minutes are in. Read, then pick.`);
   } catch (e) { status(e.message, true); }
 };
@@ -383,6 +432,7 @@ $("btn-draft").onclick = async () => {
     renderThread(data.thread);
     $("memo").innerHTML = renderMarkdown(data.memo);
     $("pickrow").hidden = true;
+    refreshArchive("draft");
     status("Draft minutes are in. Advice only, nothing is scored.");
   } catch (e) { status(e.message, true); }
 };
@@ -396,8 +446,15 @@ $("btn-settle").onclick = async () => {
   } catch (e) { status(e.message, true); }
 };
 
+async function openLatest() {
+  const r = await fetch("/api/debates");
+  const data = await r.json();
+  if (data.debates.length) openDebate(data.debates[data.debates.length - 1].name);
+}
+
 refreshStandings();
 refreshSquad();
+openLatest();
 </script>
 </body>
 </html>
