@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -27,7 +28,14 @@ def load_ledger() -> Ledger:
 DIFFERENTIAL_OWNERSHIP = 10.0
 
 
-def build_context(players, gw: int) -> str:
+def get_squad_for_gw(fpl: FplClient, gw: int):
+    entry_id = os.environ.get("FPL_ENTRY_ID")
+    if not entry_id or gw <= 1:
+        return None
+    return fpl.get_squad(int(entry_id), gw - 1)
+
+
+def build_context(players, gw: int, squad=None) -> str:
     hot = sorted(players, key=lambda p: p.form, reverse=True)[:20]
     value = sorted(
         players,
@@ -44,16 +52,33 @@ def build_context(players, gw: int) -> str:
             seen.add(p.id)
             picked.append(p)
 
-    lines = [
-        f"id={p.id} {p.name} {p.team} {p.position} price={p.price} "
-        f"form={p.form} points={p.total_points} owned={p.ownership}% status={p.status}"
-        for p in picked
-    ]
+    def player_line(p):
+        return (
+            f"id={p.id} {p.name} {p.team} {p.position} price={p.price} "
+            f"form={p.form} points={p.total_points} owned={p.ownership}% "
+            f"status={p.status}"
+        )
+
+    lines = [player_line(p) for p in picked]
+
+    squad_block = ""
+    if squad is not None:
+        lookup = {p.id: p for p in players}
+        squad_lines = [
+            player_line(lookup[pid]) for pid in squad.player_ids if pid in lookup
+        ]
+        squad_block = (
+            "\n\nMY CURRENT SQUAD (transfer_out MUST be one of these ids, and "
+            f"transfer_in price must fit bank {squad.bank}m plus the sold "
+            "player's price):\n" + "\n".join(squad_lines)
+        )
+
     return (
         f"Gameweek {gw}. Recommend ONE transfer (out, in), a captain, and a bench "
         "order, using only players from this list. Low owned= values are "
         "differentials.\n"
         + "\n".join(lines)
+        + squad_block
         + '\n\nRespond with ONE JSON object only:\n{"transfer_in": <player id>, '
         '"transfer_out": <player id>, "captain": <player id>, "bench_order": '
         '[<player ids>], "rationale": "<max 80 words>", "attacks": '
@@ -66,7 +91,8 @@ def cmd_memo(args) -> None:
     client = LlmClient()
     ledger = load_ledger()
     players = fpl.get_players()
-    context = build_context(players, args.gw)
+    squad = get_squad_for_gw(fpl, args.gw)
+    context = build_context(players, args.gw, squad=squad)
     result = run_debate(client, context, ledger)
 
     MEMOS_DIR.mkdir(exist_ok=True)

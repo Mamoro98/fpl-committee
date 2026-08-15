@@ -85,6 +85,42 @@ def test_build_context_includes_low_ownership_differentials():
     assert "owned=3.2%" in context
 
 
+def test_build_context_with_squad_lists_it_and_constrains_transfer_out():
+    from committee.fpl import Squad
+
+    players = [make_player(pid, form=5.0, ownership=45.0) for pid in range(1, 30)]
+    squad = Squad(player_ids=[1, 2, 3], bank=1.5)
+
+    context = cli.build_context(players, gw=2, squad=squad)
+
+    assert "MY CURRENT SQUAD" in context
+    assert "transfer_out MUST be one of these ids" in context
+    assert "bank 1.5m" in context
+
+
+def test_build_context_without_squad_has_no_squad_block():
+    players = [make_player(pid, form=5.0, ownership=45.0) for pid in range(1, 30)]
+    context = cli.build_context(players, gw=1)
+    assert "MY CURRENT SQUAD" not in context
+
+
+def test_get_squad_for_gw1_returns_none(monkeypatch):
+    monkeypatch.setenv("FPL_ENTRY_ID", "12345")
+    assert cli.get_squad_for_gw(object(), gw=1) is None
+
+
+def test_get_squad_fetches_previous_gw(monkeypatch):
+    monkeypatch.setenv("FPL_ENTRY_ID", "12345")
+
+    class FakeFpl:
+        def get_squad(self, entry_id, gw):
+            assert entry_id == 12345
+            assert gw == 4
+            return "squad-sentinel"
+
+    assert cli.get_squad_for_gw(FakeFpl(), gw=5) == "squad-sentinel"
+
+
 def test_build_context_has_no_duplicate_players():
     players = [make_player(pid, form=5.0, ownership=5.0) for pid in range(1, 15)]
     context = cli.build_context(players, gw=2)
