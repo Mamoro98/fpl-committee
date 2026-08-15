@@ -16,3 +16,16 @@ def test_settle_moves_picked_agent_by_ewma():
 
     assert ledger.scores()["scout"] == pytest.approx(0.85 * 17.0 + 0.15 * 30.0)
     assert ledger.scores()["risk"] == 17.0
+
+
+def test_ledger_survives_save_and_reload(tmp_path):
+    ledger = Ledger.new(agents=["scout", "risk", "hawk"], prior=17.0)
+    ledger.record_pick(gw=1, agent="scout")
+    ledger.settle(gw=1, reward=30.0)
+
+    path = tmp_path / "ledger.json"
+    ledger.save(path)
+    reloaded = Ledger.load(path)
+
+    assert reloaded.scores() == ledger.scores()
+    assert reloaded.history() == ledger.history()

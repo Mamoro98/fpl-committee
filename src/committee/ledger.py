@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 ALPHA = 0.15
 
 
@@ -21,3 +24,15 @@ class Ledger:
         entry["reward"] = reward
         picked = entry["picked"]
         self._scores[picked] = (1 - ALPHA) * self._scores[picked] + ALPHA * reward
+
+    def history(self) -> list[dict]:
+        return [dict(entry) for entry in self._history]
+
+    def save(self, path: Path) -> None:
+        data = {"scores": self._scores, "history": self._history}
+        Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    @classmethod
+    def load(cls, path: Path) -> "Ledger":
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls(scores=data["scores"], history=data["history"])
