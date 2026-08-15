@@ -7,3 +7,4 @@ __pycache__/
 ledger.json
 memos/
 .claude/settings.local.json
+.env

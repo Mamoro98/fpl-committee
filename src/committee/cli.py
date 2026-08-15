@@ -2,6 +2,8 @@ import argparse
 import json
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from committee.agents import AGENTS
 from committee.debate import run_debate
 from committee.draft import run_draft_debate
@@ -129,6 +131,7 @@ def cmd_draft(args) -> None:
 
 
 def main(argv=None) -> None:
+    load_dotenv()
     parser = argparse.ArgumentParser(prog="committee")
     sub = parser.add_subparsers(dest="command", required=True)
 
