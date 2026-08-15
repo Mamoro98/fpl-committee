@@ -1,5 +1,8 @@
 import json
 import os
+import threading
+import time
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -25,6 +28,46 @@ from committee.memo import debate_thread, render_memo
 app = FastAPI(title="fpl-committee")
 
 INDEX_PATH = Path(__file__).parent / "static" / "index.html"
+
+JOBS: dict[str, dict] = {}
+
+
+def _run_job(job_id: str, fn) -> None:
+    job = JOBS[job_id]
+    try:
+        job["result"] = fn()
+        job["state"] = "done"
+    except Exception as exc:  # noqa: BLE001 - job boundary, every failure must reach the UI
+        job["state"] = "error"
+        job["error"] = f"{type(exc).__name__}: {exc}"
+        print(f"[job {job_id}] failed: {job['error']}")
+
+
+def _start_job(label: str, fn) -> dict:
+    job_id = uuid.uuid4().hex[:12]
+    JOBS[job_id] = {
+        "state": "running",
+        "label": label,
+        "started_at": time.time(),
+        "result": None,
+        "error": None,
+    }
+    threading.Thread(target=_run_job, args=(job_id, fn), daemon=True).start()
+    return {"job_id": job_id}
+
+
+@app.get("/api/job/{job_id}")
+def job_status(job_id: str) -> dict:
+    job = JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(404, "unknown job")
+    return {
+        "state": job["state"],
+        "label": job["label"],
+        "elapsed": int(time.time() - job["started_at"]),
+        "result": job["result"] if job["state"] == "done" else None,
+        "error": job["error"],
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -107,8 +150,7 @@ def scoreboard() -> dict:
     return {"scores": ledger.scores(), "history": ledger.history()}
 
 
-@app.post("/api/draft")
-def draft() -> dict:
+def _do_draft() -> dict:
     fpl = FplClient()
     client = LlmClient()
     ledger = load_ledger()
@@ -121,8 +163,12 @@ def draft() -> dict:
     return {"memo": memo, "thread": draft_thread(result, players)}
 
 
-@app.post("/api/memo/{gw}")
-def memo(gw: int) -> dict:
+@app.post("/api/draft")
+def draft() -> dict:
+    return _start_job("draft", _do_draft)
+
+
+def _do_memo(gw: int) -> dict:
     fpl = FplClient()
     client = LlmClient()
     ledger = load_ledger()
@@ -142,6 +188,11 @@ def memo(gw: int) -> dict:
         encoding="utf-8",
     )
     return {"memo": text, "agents": AGENTS, "thread": debate_thread(result, names)}
+
+
+@app.post("/api/memo/{gw}")
+def memo(gw: int) -> dict:
+    return _start_job(f"memo-gw{gw}", lambda: _do_memo(gw))
 
 
 @app.post("/api/pick/{gw}/{agent}")

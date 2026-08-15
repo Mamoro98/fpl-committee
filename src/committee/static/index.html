@@ -329,10 +329,32 @@ async function longPost(url, label) {
   }
 }
 
+const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+
+async function runJob(url, label) {
+  const buttons = document.querySelectorAll("button");
+  buttons.forEach(b => b.disabled = true);
+  try {
+    const start = await fetch(url, { method: "POST" });
+    const { job_id } = await start.json();
+    while (true) {
+      const s = await (await fetch(`/api/job/${job_id}`)).json();
+      if (s.state === "done") return s.result;
+      if (s.state === "error") throw new Error(s.error);
+      const mins = Math.floor(s.elapsed / 60), secs = s.elapsed % 60;
+      status(`${label} Running ${mins}:${String(secs).padStart(2, "0")} `);
+      $("status").insertAdjacentHTML("beforeend", '<span class="spin"></span>');
+      await sleep(3000);
+    }
+  } finally {
+    buttons.forEach(b => b.disabled = false);
+  }
+}
+
 $("btn-memo").onclick = async () => {
   const gw = $("gw").value;
   try {
-    const data = await longPost(`/api/memo/${gw}`, `Committee is debating GW${gw}. A minute or two.`);
+    const data = await runJob(`/api/memo/${gw}`, `Committee is debating GW${gw}.`);
     renderThread(data.thread);
     $("memo").innerHTML = renderMarkdown(data.memo);
     $("pickrow").hidden = false;
@@ -357,7 +379,7 @@ $("btn-memo").onclick = async () => {
 
 $("btn-draft").onclick = async () => {
   try {
-    const data = await longPost("/api/draft", "Drafting three full squads. A few minutes.");
+    const data = await runJob("/api/draft", "Drafting three full squads.");
     renderThread(data.thread);
     $("memo").innerHTML = renderMarkdown(data.memo);
     $("pickrow").hidden = true;
