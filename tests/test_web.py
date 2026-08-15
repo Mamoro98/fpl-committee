@@ -51,6 +51,61 @@ def test_pick_records_and_double_pick_409s(client, tmp_path):
     assert ledger.history()[0]["picked"] == "scout"
 
 
+def test_squad_endpoint_without_entry_id(client, monkeypatch):
+    monkeypatch.delenv("FPL_ENTRY_ID", raising=False)
+    data = client.get("/api/squad").json()
+    assert data["squad"] is None
+    assert "FPL_ENTRY_ID" in data["reason"]
+
+
+def test_squad_endpoint_preseason(client, monkeypatch):
+    monkeypatch.setenv("FPL_ENTRY_ID", "12345")
+
+    class FakeFpl:
+        def get_current_gw(self):
+            return None
+
+    monkeypatch.setattr(web, "FplClient", FakeFpl)
+    data = client.get("/api/squad").json()
+    assert data["squad"] is None
+    assert "season" in data["reason"]
+
+
+def test_squad_endpoint_returns_players(client, monkeypatch):
+    monkeypatch.setenv("FPL_ENTRY_ID", "12345")
+
+    from committee.fpl import Player, Squad
+
+    class FakeFpl:
+        def get_current_gw(self):
+            return 3
+
+        def get_squad(self, entry_id, gw):
+            assert (entry_id, gw) == (12345, 3)
+            return Squad(player_ids=[1], bank=2.0)
+
+        def get_players(self):
+            return [
+                Player(
+                    id=1,
+                    name="Haaland",
+                    team="Man City",
+                    position="FWD",
+                    price=15.5,
+                    form=0.0,
+                    status="a",
+                    ownership=60.0,
+                    total_points=0,
+                )
+            ]
+
+    monkeypatch.setattr(web, "FplClient", FakeFpl)
+    data = client.get("/api/squad").json()
+    assert data["gw"] == 3
+    assert data["bank"] == 2.0
+    assert data["squad"][0]["name"] == "Haaland"
+
+
 def test_settle_applies_reward(client, tmp_path, monkeypatch):
     memos = tmp_path / "memos"
     memos.mkdir()
