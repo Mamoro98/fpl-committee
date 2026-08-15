@@ -1,6 +1,29 @@
 from committee.ledger import Ledger
 
 
+def suggestion_text(s, players: dict[int, str] | None = None) -> str:
+    return (
+        f"OUT {_name(players, s.transfer_out)}, IN {_name(players, s.transfer_in)}, "
+        f"captain {_name(players, s.captain)}. {s.rationale}"
+    )
+
+
+def debate_thread(result: dict, players: dict[int, str] | None = None) -> list[dict]:
+    thread = []
+    for agent, s in result["round1"].items():
+        thread.append({"round": 1, "agent": agent, "text": suggestion_text(s, players)})
+    for agent, s in result["final"].items():
+        thread.append(
+            {
+                "round": 2,
+                "agent": agent,
+                "attacks": list(s.attacks),
+                "text": suggestion_text(s, players),
+            }
+        )
+    return thread
+
+
 def _name(players: dict[int, str] | None, player_id: int) -> str:
     if players and player_id in players:
         return f"{players[player_id]} ({player_id})"

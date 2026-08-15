@@ -2,6 +2,30 @@ from committee.fpl import Player
 from committee.ledger import Ledger
 
 
+def draft_text(d, lookup: dict[int, Player]) -> str:
+    cost = round(sum(lookup[pid].price for pid in d.squad if pid in lookup), 1)
+    xi = ", ".join(lookup[pid].name for pid in d.starting_xi if pid in lookup)
+    captain = lookup[d.captain].name if d.captain in lookup else str(d.captain)
+    return f"{d.formation}, {cost}m. XI: {xi}. Captain {captain}. {d.rationale}"
+
+
+def draft_thread(result: dict, players: list[Player]) -> list[dict]:
+    lookup = {p.id: p for p in players}
+    thread = []
+    for agent, d in result["round1"].items():
+        thread.append({"round": 1, "agent": agent, "text": draft_text(d, lookup)})
+    for agent, d in result["final"].items():
+        thread.append(
+            {
+                "round": 2,
+                "agent": agent,
+                "attacks": list(d.attacks),
+                "text": draft_text(d, lookup),
+            }
+        )
+    return thread
+
+
 def render_draft_memo(result: dict, ledger: Ledger, players: list[Player]) -> str:
     lookup = {p.id: p for p in players}
 
