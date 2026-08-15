@@ -141,8 +141,9 @@ def _round2_context(
     return (
         f"{base}\n\nROUND 2. Rival drafts from round 1:\n{rival_block}\n\n"
         f"Current reputation scores:\n{json.dumps(scores, indent=2)}\n\n"
-        "Attack weak choices in rival drafts (fill the attacks list), then give "
-        "your final draft. Keep or change your round 1 squad."
+        "Attack the weakest specific choice of EACH rival by name, quoting the "
+        "choice, in the attacks list. State plainly if a rival changed your mind. "
+        "Then give your final draft, kept or changed."
     )
 
 
