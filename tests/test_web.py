@@ -155,6 +155,63 @@ def test_manual_squad_requires_15(client, monkeypatch):
     assert "15 players" in r["detail"]
 
 
+def test_memo_runs_as_background_job(client, monkeypatch):
+    import time as _time
+
+    from committee.agents import Suggestion
+
+    class FakeFpl:
+        def get_players(self):
+            return make_players()
+
+    def fake_debate(llm_client, context, ledger):
+        s = Suggestion(**SUGGESTION)
+        return {"round1": {"scout": s}, "final": {"scout": s}}
+
+    monkeypatch.setattr(web, "FplClient", FakeFpl)
+    monkeypatch.setattr(web, "LlmClient", lambda: object())
+    monkeypatch.setattr(web, "get_squad_for_gw", lambda fpl, gw: None)
+    monkeypatch.setattr(web, "run_debate", fake_debate)
+
+    job = client.post("/api/memo/1").json()
+    assert "job_id" in job
+
+    for _ in range(50):
+        s = client.get(f"/api/job/{job['job_id']}").json()
+        if s["state"] != "running":
+            break
+        _time.sleep(0.05)
+
+    assert s["state"] == "done"
+    assert "thread" in s["result"]
+    assert s["result"]["agents"] == ["scout", "risk", "hawk"]
+
+
+def test_job_failure_is_reported(client, monkeypatch):
+    import time as _time
+
+    class ExplodingFpl:
+        def get_players(self):
+            raise RuntimeError("fpl is down")
+
+    monkeypatch.setattr(web, "FplClient", ExplodingFpl)
+    monkeypatch.setattr(web, "LlmClient", lambda: object())
+
+    job = client.post("/api/memo/1").json()
+    for _ in range(50):
+        s = client.get(f"/api/job/{job['job_id']}").json()
+        if s["state"] != "running":
+            break
+        _time.sleep(0.05)
+
+    assert s["state"] == "error"
+    assert "fpl is down" in s["error"]
+
+
+def test_unknown_job_404s(client):
+    assert client.get("/api/job/nope").status_code == 404
+
+
 def test_settle_applies_reward(client, tmp_path, monkeypatch):
     memos = tmp_path / "memos"
     memos.mkdir()
