@@ -4,95 +4,183 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FPL Committee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #12101a;
-    --card: #1c1927;
-    --line: #2c2840;
-    --text: #ece9f4;
-    --muted: #9a93b3;
-    --accent: #00ff87;
-    --accent-dark: #04c96e;
-    --purple: #7b6cff;
-    --danger: #ff5470;
+    --board: #152420;
+    --board-deep: #0f1b18;
+    --chalk: #f2efe6;
+    --chalk-dim: #9fb0a8;
+    --line: #2a3f38;
+    --armband: #e8c34a;
+    --scout: #7fd1c8;
+    --risk: #e0965a;
+    --hawk: #b39ddb;
+    --foul: #e26d6d;
   }
   * { box-sizing: border-box; }
+  html { background: var(--board-deep); }
   body {
-    margin: 0; padding: 2rem 1rem 4rem;
-    background: var(--bg); color: var(--text);
-    font: 16px/1.5 system-ui, "Segoe UI", sans-serif;
-    max-width: 900px; margin-inline: auto;
+    margin: 0 auto; padding: 2.5rem 1.25rem 5rem; max-width: 1020px;
+    background: var(--board); color: var(--chalk);
+    font: 16px/1.55 Barlow, system-ui, sans-serif;
+    border-inline: 1px solid var(--line);
+    min-height: 100vh;
   }
-  h1 { font-size: 1.4rem; margin: 0 0 1.5rem; letter-spacing: 0.02em; }
-  h1 span { color: var(--accent); }
-  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin-bottom: 1.5rem; }
-  .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 1rem; text-align: center;
+  h1, h2, .display {
+    font-family: "Barlow Condensed", sans-serif;
+    text-transform: uppercase; letter-spacing: 0.04em; margin: 0;
   }
-  .card .name { color: var(--muted); text-transform: capitalize; font-size: 0.85rem; }
-  .card .score { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
-  .card .picks { color: var(--muted); font-size: 0.75rem; }
-  .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
-  button {
-    background: var(--accent); color: #08240f; border: 0; border-radius: 8px;
-    padding: 0.55rem 1.1rem; font-weight: 700; font-size: 0.95rem; cursor: pointer;
+  .num { font-family: "IBM Plex Mono", monospace; }
+
+  header { border-bottom: 2px solid var(--chalk); padding-bottom: 1rem; margin-bottom: 1.75rem; }
+  header h1 { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+  header p { margin: 0.35rem 0 0; color: var(--chalk-dim); }
+
+  .grid { display: grid; grid-template-columns: 340px 1fr; gap: 1.25rem; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    border: 1px solid var(--line); border-radius: 4px;
+    background: color-mix(in srgb, var(--board) 60%, var(--board-deep));
+    padding: 1.1rem 1.2rem;
   }
-  button:hover { background: var(--accent-dark); }
-  button:disabled { background: var(--line); color: var(--muted); cursor: wait; }
-  button.secondary { background: var(--purple); color: white; }
+  .panel h2 {
+    font-size: 1.05rem; font-weight: 600; color: var(--chalk-dim);
+    margin-bottom: 0.8rem;
+  }
+
+  /* Standings: the signature */
+  #standings table { width: 100%; border-collapse: collapse; }
+  #standings td {
+    padding: 0.55rem 0.3rem; border-top: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  #standings tr { opacity: 1; }
+  @media (prefers-reduced-motion: no-preference) {
+    #standings tr { animation: chalk 0.4s ease both; }
+    #standings tr:nth-child(2) { animation-delay: 0.12s; }
+    #standings tr:nth-child(3) { animation-delay: 0.24s; }
+    @keyframes chalk { from { opacity: 0; transform: translateX(-6px); } }
+  }
+  .pos { color: var(--chalk-dim); width: 1.4rem; }
+  .dot {
+    display: inline-block; width: 0.65rem; height: 0.65rem; border-radius: 50%;
+    margin-right: 0.5rem; vertical-align: baseline;
+  }
+  .agent-name { text-transform: capitalize; font-weight: 600; }
+  .score-cell { text-align: right; font-size: 1.15rem; }
+  .picked-cell { text-align: right; color: var(--chalk-dim); font-size: 0.8rem; width: 4.5rem; }
+
+  /* Team sheet */
+  #squad .posrow { border-top: 1px dashed var(--line); padding: 0.45rem 0; }
+  #squad .poslabel {
+    font-family: "Barlow Condensed", sans-serif; color: var(--chalk-dim);
+    width: 2.8rem; display: inline-block; letter-spacing: 0.08em;
+  }
+  .chip { white-space: nowrap; margin-right: 0.7rem; }
+  .chip .num { color: var(--chalk-dim); font-size: 0.8rem; }
+  .flag { color: var(--foul); font-weight: 700; }
+
+  /* Console */
+  .console { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: stretch; }
   input[type=number] {
-    width: 5rem; padding: 0.5rem; border-radius: 8px; border: 1px solid var(--line);
-    background: var(--card); color: var(--text); font-size: 1rem;
+    width: 4.6rem; padding: 0.5rem 0.6rem; border-radius: 4px;
+    border: 1px solid var(--line); background: var(--board-deep);
+    color: var(--chalk); font: 600 1.05rem "IBM Plex Mono", monospace; text-align: center;
   }
-  #status { color: var(--muted); font-size: 0.9rem; min-height: 1.4em; margin-bottom: 1rem; }
-  #status.error { color: var(--danger); }
-  #memo {
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 1.2rem; overflow-x: auto;
+  button {
+    font: 600 0.95rem "Barlow Condensed", sans-serif; text-transform: uppercase;
+    letter-spacing: 0.06em; cursor: pointer; border-radius: 4px;
+    padding: 0.55rem 1.15rem; border: 1px solid var(--chalk);
+    background: var(--chalk); color: var(--board);
   }
+  button:hover { background: var(--armband); border-color: var(--armband); }
+  button.quiet { background: transparent; color: var(--chalk); }
+  button.quiet:hover { color: var(--armband); border-color: var(--armband); background: transparent; }
+  button:disabled { opacity: 0.45; cursor: wait; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--armband); outline-offset: 2px; }
+
+  #pickrow { margin-top: 0.8rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  #pickrow[hidden] { display: none; }
+  #pickrow button { border-width: 2px; background: transparent; color: var(--chalk); }
+  #pickrow button.scout { border-color: var(--scout); }
+  #pickrow button.risk { border-color: var(--risk); }
+  #pickrow button.hawk { border-color: var(--hawk); }
+  #pickrow button:hover { background: var(--line); }
+
+  #status { margin: 0.9rem 0 0; color: var(--chalk-dim); min-height: 1.5em; }
+  #status.error { color: var(--foul); }
+  #status.error::before { content: "✕ "; }
+
+  /* Minutes (memo) */
+  #memo { margin-top: 1.25rem; }
   #memo:empty { display: none; }
-  #memo table { border-collapse: collapse; width: 100%; }
-  #memo th, #memo td { border: 1px solid var(--line); padding: 0.4rem 0.6rem; text-align: left; }
-  #memo th { color: var(--muted); }
-  #memo h1, #memo h2 { font-size: 1.1rem; color: var(--accent); }
-  #pickrow button { text-transform: capitalize; }
+  #memo h1 { font-size: 1.4rem; border-bottom: 1px solid var(--line); padding-bottom: 0.4rem; }
+  #memo h2 { font-size: 1.05rem; color: var(--armband); margin-top: 1.2rem; }
+  #memo table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; }
+  #memo th, #memo td { border: 1px solid var(--line); padding: 0.45rem 0.6rem; text-align: left; }
+  #memo th { font-family: "Barlow Condensed", sans-serif; text-transform: uppercase; color: var(--chalk-dim); }
+  #memo li { margin: 0.25rem 0; }
+  #memo strong { color: var(--armband); font-weight: 600; }
+
   .spin {
-    display: inline-block; width: 1em; height: 1em; border-radius: 50%;
-    border: 2px solid var(--muted); border-top-color: var(--accent);
-    animation: r 0.8s linear infinite; vertical-align: -0.15em;
+    display: inline-block; width: 0.9em; height: 0.9em; border-radius: 50%;
+    border: 2px solid var(--line); border-top-color: var(--armband);
+    animation: r 0.8s linear infinite; vertical-align: -0.1em;
   }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
   @keyframes r { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-<h1>FPL <span>Transfer Committee</span></h1>
 
-<div class="cards" id="cards"></div>
+<header>
+  <h1>Transfer Committee</h1>
+  <p>Three advisors. One pick. Real points settle the argument.</p>
+</header>
 
-<div class="card" id="squad" style="text-align:left; margin-bottom:1.5rem;"></div>
+<div class="grid">
+  <div>
+    <section class="panel" id="standings-panel">
+      <h2>Standings</h2>
+      <div id="standings"></div>
+    </section>
+    <section class="panel" id="squad-panel" style="margin-top: 1.25rem;">
+      <h2>Team sheet</h2>
+      <div id="squad"></div>
+    </section>
+  </div>
 
-<div class="row">
-  <label for="gw">GW</label>
-  <input type="number" id="gw" min="1" max="38" value="1">
-  <button id="btn-memo">Run debate</button>
-  <button id="btn-settle" class="secondary">Settle</button>
-  <button id="btn-draft" class="secondary">Draft squad (one-off)</button>
+  <div>
+    <section class="panel">
+      <h2>This gameweek</h2>
+      <div class="console">
+        <label class="display" for="gw" style="align-self: center; color: var(--chalk-dim);">GW</label>
+        <input type="number" id="gw" min="1" max="38" value="1">
+        <button id="btn-memo">Run debate</button>
+        <button id="btn-settle" class="quiet">Settle gameweek</button>
+        <button id="btn-draft" class="quiet">Draft full squad</button>
+      </div>
+      <div id="pickrow" hidden><span class="display" style="color: var(--chalk-dim);">Your pick:</span></div>
+      <p id="status"></p>
+      <article id="memo"></article>
+    </section>
+  </div>
 </div>
-
-<div class="row" id="pickrow" hidden>
-  <span>Pick:</span>
-</div>
-
-<div id="status"></div>
-<div id="memo"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
+const AGENT_COLORS = { scout: "var(--scout)", risk: "var(--risk)", hawk: "var(--hawk)" };
 const status = (text, isError = false) => {
   $("status").textContent = text;
   $("status").className = isError ? "error" : "";
 };
+
+const inline = (t) =>
+  t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>");
 
 function renderMarkdown(md) {
   const esc = md.replace(/&/g, "&amp;").replace(/</g, "&lt;");
@@ -122,22 +210,41 @@ function renderMarkdown(md) {
   if (listOpen) html += "</ul>";
   return html;
 }
-const inline = (t) =>
-  t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>");
 
-async function refreshScoreboard() {
+async function refreshStandings() {
   const r = await fetch("/api/scoreboard");
   const data = await r.json();
   const picks = {};
   for (const e of data.history) picks[e.picked] = (picks[e.picked] || 0) + 1;
-  $("cards").innerHTML = Object.entries(data.scores)
+  const rows = Object.entries(data.scores)
     .sort((a, b) => b[1] - a[1])
-    .map(([name, score]) => `
-      <div class="card">
-        <div class="name">${name}</div>
-        <div class="score">${score.toFixed(2)}</div>
-        <div class="picks">picked ${picks[name] || 0}x</div>
-      </div>`).join("");
+    .map(([name, score], i) => `
+      <tr>
+        <td class="pos num">${i + 1}</td>
+        <td><span class="dot" style="background:${AGENT_COLORS[name]}"></span>
+            <span class="agent-name">${name}</span></td>
+        <td class="score-cell num">${score.toFixed(2)}</td>
+        <td class="picked-cell num">${picks[name] || 0}×</td>
+      </tr>`).join("");
+  $("standings").innerHTML = `<table><tbody>${rows}</tbody></table>`;
+}
+
+async function refreshSquad() {
+  const r = await fetch("/api/squad");
+  const data = await r.json();
+  if (!data.squad) {
+    $("squad").innerHTML = `<span style="color:var(--chalk-dim)">${data.reason}.</span>`;
+    return;
+  }
+  const order = ["GKP", "DEF", "MID", "FWD"];
+  const rows = order.map(pos => {
+    const chips = data.squad.filter(p => p.position === pos).map(p =>
+      `<span class="chip">${p.name} <span class="num">${p.price}</span>${p.status !== "a" ? ' <span class="flag" title="injury or doubt">!</span>' : ""}</span>`
+    ).join("");
+    return `<div class="posrow"><span class="poslabel">${pos}</span>${chips}</div>`;
+  }).join("");
+  $("squad").innerHTML =
+    rows + `<div class="posrow"><span class="poslabel">BANK</span><span class="num">${data.bank}m</span> <span style="color:var(--chalk-dim)">(as of GW${data.gw})</span></div>`;
 }
 
 async function longPost(url, label) {
@@ -158,65 +265,47 @@ async function longPost(url, label) {
 $("btn-memo").onclick = async () => {
   const gw = $("gw").value;
   try {
-    const data = await longPost(`/api/memo/${gw}`, `Debating GW${gw}, takes a minute or two...`);
+    const data = await longPost(`/api/memo/${gw}`, `Committee is debating GW${gw}. A minute or two.`);
     $("memo").innerHTML = renderMarkdown(data.memo);
     $("pickrow").hidden = false;
     $("pickrow").querySelectorAll("button").forEach(b => b.remove());
     for (const agent of data.agents) {
       const b = document.createElement("button");
       b.textContent = agent;
+      b.className = agent;
       b.onclick = async () => {
         try {
-          await longPost(`/api/pick/${gw}/${agent}`, `Recording pick...`);
-          status(`GW${gw}: picked ${agent}. Now make the real transfer in the FPL app.`);
+          await longPost(`/api/pick/${gw}/${agent}`, "Recording your pick.");
+          status(`GW${gw}: ${agent} it is. Now make the real transfer in the FPL app.`);
           $("pickrow").hidden = true;
-          refreshScoreboard();
+          refreshStandings();
         } catch (e) { status(e.message, true); }
       };
       $("pickrow").appendChild(b);
     }
-    status(`GW${gw} memo ready. Read it, then pick.`);
+    status(`GW${gw} minutes are in. Read, then pick.`);
   } catch (e) { status(e.message, true); }
 };
 
 $("btn-draft").onclick = async () => {
   try {
-    const data = await longPost("/api/draft", "Drafting three full squads, takes a few minutes...");
+    const data = await longPost("/api/draft", "Drafting three full squads. A few minutes.");
     $("memo").innerHTML = renderMarkdown(data.memo);
     $("pickrow").hidden = true;
-    status("Draft memo ready. No pick needed, this one is advice only.");
+    status("Draft minutes are in. Advice only, nothing is scored.");
   } catch (e) { status(e.message, true); }
 };
 
 $("btn-settle").onclick = async () => {
   const gw = $("gw").value;
   try {
-    const data = await longPost(`/api/settle/${gw}`, `Settling GW${gw}...`);
-    status(`GW${gw}: ${data.picked} rewarded ${data.reward.toFixed(1)}.`);
-    refreshScoreboard();
+    const data = await longPost(`/api/settle/${gw}`, `Fetching GW${gw} points.`);
+    status(`GW${gw} settled: ${data.picked} earns ${data.reward.toFixed(1)}.`);
+    refreshStandings();
   } catch (e) { status(e.message, true); }
 };
 
-async function refreshSquad() {
-  const r = await fetch("/api/squad");
-  const data = await r.json();
-  if (!data.squad) {
-    $("squad").innerHTML =
-      `<span style="color:var(--muted)">My squad: ${data.reason}</span>`;
-    return;
-  }
-  const order = ["GKP", "DEF", "MID", "FWD"];
-  const rows = order.map(pos => {
-    const group = data.squad.filter(p => p.position === pos);
-    const chips = group.map(p =>
-      `<span style="display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:0.15rem 0.5rem;margin:0.15rem;">${p.name} <span style="color:var(--muted)">${p.price}m</span>${p.status !== "a" ? ' <span style="color:var(--danger)">!</span>' : ""}</span>`).join("");
-    return `<div><strong style="color:var(--muted)">${pos}</strong> ${chips}</div>`;
-  }).join("");
-  $("squad").innerHTML =
-    `<div style="margin-bottom:0.4rem;"><strong>My squad</strong> <span style="color:var(--muted)">(GW${data.gw}, bank ${data.bank}m)</span></div>${rows}`;
-}
-
-refreshScoreboard();
+refreshStandings();
 refreshSquad();
 </script>
 </body>
