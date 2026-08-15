@@ -20,16 +20,35 @@ def load_ledger() -> Ledger:
     return Ledger.new(agents=AGENTS, prior=PRIOR)
 
 
+DIFFERENTIAL_OWNERSHIP = 10.0
+
+
 def build_context(players, gw: int) -> str:
-    top = sorted(players, key=lambda p: (p.form, p.price), reverse=True)[:40]
+    hot = sorted(players, key=lambda p: p.form, reverse=True)[:20]
+    value = sorted(
+        players,
+        key=lambda p: p.total_points / p.price if p.price else 0,
+        reverse=True,
+    )[:10]
+    low_owned = [p for p in players if p.ownership < DIFFERENTIAL_OWNERSHIP]
+    differentials = sorted(low_owned, key=lambda p: p.form, reverse=True)[:10]
+
+    seen: set[int] = set()
+    picked = []
+    for p in [*hot, *value, *differentials]:
+        if p.id not in seen:
+            seen.add(p.id)
+            picked.append(p)
+
     lines = [
         f"id={p.id} {p.name} {p.team} {p.position} price={p.price} "
-        f"form={p.form} status={p.status}"
-        for p in top
+        f"form={p.form} points={p.total_points} owned={p.ownership}% status={p.status}"
+        for p in picked
     ]
     return (
         f"Gameweek {gw}. Recommend ONE transfer (out, in), a captain, and a bench "
-        "order, using only players from this list:\n" + "\n".join(lines)
+        "order, using only players from this list. Low owned= values are "
+        "differentials.\n" + "\n".join(lines)
     )
 
 

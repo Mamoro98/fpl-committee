@@ -7,7 +7,9 @@
                          "element_type":  3,
                          "now_cost":  95,
                          "form":  "0.0",
-                         "status":  "a"
+                         "status":  "a",
+                         "selected_by_percent":  "10.6",
+                         "total_points":  157
                      },
                      {
                          "id":  154,
@@ -16,7 +18,9 @@
                          "element_type":  3,
                          "now_cost":  95,
                          "form":  "0.0",
-                         "status":  "a"
+                         "status":  "a",
+                         "selected_by_percent":  "11.0",
+                         "total_points":  114
                      },
                      {
                          "id":  379,
@@ -25,7 +29,9 @@
                          "element_type":  4,
                          "now_cost":  90,
                          "form":  "0.0",
-                         "status":  "a"
+                         "status":  "a",
+                         "selected_by_percent":  "14.0",
+                         "total_points":  41
                      },
                      {
                          "id":  411,
@@ -34,7 +40,9 @@
                          "element_type":  4,
                          "now_cost":  155,
                          "form":  "0.0",
-                         "status":  "a"
+                         "status":  "a",
+                         "selected_by_percent":  "73.3",
+                         "total_points":  239
                      },
                      {
                          "id":  426,
@@ -43,7 +51,9 @@
                          "element_type":  3,
                          "now_cost":  120,
                          "form":  "0.0",
-                         "status":  "a"
+                         "status":  "a",
+                         "selected_by_percent":  "48.0",
+                         "total_points":  235
                      }
                  ],
     "teams":  [
