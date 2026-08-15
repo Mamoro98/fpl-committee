@@ -130,6 +130,12 @@ def cmd_draft(args) -> None:
     print(memo)
 
 
+def cmd_web(args) -> None:
+    import uvicorn
+
+    uvicorn.run("committee.web:app", host="127.0.0.1", port=args.port)
+
+
 def main(argv=None) -> None:
     load_dotenv()
     parser = argparse.ArgumentParser(prog="committee")
@@ -150,6 +156,10 @@ def main(argv=None) -> None:
     p_settle = sub.add_parser("settle", help="apply real points to the picked agent")
     p_settle.add_argument("--gw", type=int, required=True)
     p_settle.set_defaults(func=cmd_settle)
+
+    p_web = sub.add_parser("web", help="serve the dashboard on localhost")
+    p_web.add_argument("--port", type=int, default=8000)
+    p_web.set_defaults(func=cmd_web)
 
     args = parser.parse_args(argv)
     args.func(args)

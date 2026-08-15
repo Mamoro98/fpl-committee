@@ -2,7 +2,7 @@
 name = "fpl-committee"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["httpx", "pydantic>=2", "python-dotenv"]
+dependencies = ["httpx", "pydantic>=2", "python-dotenv", "fastapi", "uvicorn"]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
@@ -16,3 +16,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+committee = ["prompts/*.md", "static/*.html"]
