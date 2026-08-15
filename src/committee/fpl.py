@@ -13,6 +13,8 @@ class Player(BaseModel):
     price: float
     form: float
     status: str
+    ownership: float
+    total_points: int
 
 
 class FplClient:
@@ -43,6 +45,8 @@ class FplClient:
                 price=p["now_cost"] / 10,
                 form=float(p["form"]),
                 status=p["status"],
+                ownership=float(p["selected_by_percent"]),
+                total_points=p["total_points"],
             )
             for p in data["elements"]
         ]

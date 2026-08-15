@@ -59,6 +59,38 @@ def test_settle_applies_reward_and_ewma(tmp_path, monkeypatch):
     assert ledger.scores()["risk"] == 17.0
 
 
+def make_player(pid, form, ownership, price=8.0, total_points=50):
+    from committee.fpl import Player
+
+    return Player(
+        id=pid,
+        name=f"P{pid}",
+        team="Chelsea",
+        position="MID",
+        price=price,
+        form=form,
+        status="a",
+        ownership=ownership,
+        total_points=total_points,
+    )
+
+
+def test_build_context_includes_low_ownership_differentials():
+    crowd = [make_player(pid, form=5.0, ownership=45.0) for pid in range(1, 26)]
+    differential = make_player(99, form=4.0, ownership=3.2)
+
+    context = cli.build_context(crowd + [differential], gw=2)
+
+    assert "id=99" in context
+    assert "owned=3.2%" in context
+
+
+def test_build_context_has_no_duplicate_players():
+    players = [make_player(pid, form=5.0, ownership=5.0) for pid in range(1, 15)]
+    context = cli.build_context(players, gw=2)
+    assert context.count("id=1 ") == 1
+
+
 def test_memo_writes_files(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
@@ -71,6 +103,8 @@ def test_memo_writes_files(tmp_path, monkeypatch):
             self.price = 15.5
             self.form = 5.0
             self.status = "a"
+            self.ownership = 50.0
+            self.total_points = 100
 
     class FakeFpl:
         def get_players(self):
