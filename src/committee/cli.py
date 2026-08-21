@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -157,6 +158,7 @@ def cmd_draft(args) -> None:
     MEMOS_DIR.mkdir(exist_ok=True)
     memo = render_draft_memo(result, ledger, players)
     (MEMOS_DIR / "draft.md").write_text(memo, encoding="utf-8")
+    ledger.save(LEDGER_PATH)
     print(memo)
 
 
@@ -168,6 +170,8 @@ def cmd_web(args) -> None:
 
 def main(argv=None) -> None:
     load_dotenv()
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="committee")
     sub = parser.add_subparsers(dest="command", required=True)
 
