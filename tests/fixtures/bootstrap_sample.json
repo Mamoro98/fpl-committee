@@ -6,8 +6,12 @@
                          "team":  1,
                          "element_type":  3,
                          "now_cost":  95,
-                         "form":  "0.0",
-                         "status":  "a"
+                         "form":  "5.2",
+                         "status":  "a",
+                         "chance_of_playing_next_round":  100,
+                         "selected_by_percent":  "45.1",
+                         "ep_next":  "6.4",
+                         "news":  ""
                      },
                      {
                          "id":  154,
@@ -15,8 +19,12 @@
                          "team":  6,
                          "element_type":  3,
                          "now_cost":  95,
-                         "form":  "0.0",
-                         "status":  "a"
+                         "form":  "4.8",
+                         "status":  "a",
+                         "chance_of_playing_next_round":  100,
+                         "selected_by_percent":  "38.0",
+                         "ep_next":  "5.1",
+                         "news":  ""
                      },
                      {
                          "id":  379,
@@ -24,8 +32,12 @@
                          "team":  14,
                          "element_type":  4,
                          "now_cost":  90,
-                         "form":  "0.0",
-                         "status":  "a"
+                         "form":  "3.0",
+                         "status":  "d",
+                         "chance_of_playing_next_round":  75,
+                         "selected_by_percent":  "22.0",
+                         "ep_next":  "4.2",
+                         "news":  "Knock - 75% chance of playing"
                      },
                      {
                          "id":  411,
@@ -33,8 +45,12 @@
                          "team":  15,
                          "element_type":  4,
                          "now_cost":  155,
-                         "form":  "0.0",
-                         "status":  "a"
+                         "form":  "8.0",
+                         "status":  "a",
+                         "chance_of_playing_next_round":  100,
+                         "selected_by_percent":  "71.2",
+                         "ep_next":  "7.8",
+                         "news":  ""
                      },
                      {
                          "id":  426,
@@ -43,34 +59,58 @@
                          "element_type":  3,
                          "now_cost":  120,
                          "form":  "0.0",
-                         "status":  "a"
+                         "status":  "u",
+                         "chance_of_playing_next_round":  0,
+                         "selected_by_percent":  "5.0",
+                         "ep_next":  "0.0",
+                         "news":  "Transferred"
                      }
                  ],
     "teams":  [
                   {
                       "id":  1,
                       "name":  "Arsenal",
-                      "short_name":  "ARS"
+                      "short_name":  "ARS",
+                      "strength_attack_home":  1350,
+                      "strength_attack_away":  1280,
+                      "strength_defence_home":  1320,
+                      "strength_defence_away":  1260
                   },
                   {
                       "id":  6,
                       "name":  "Chelsea",
-                      "short_name":  "CHE"
+                      "short_name":  "CHE",
+                      "strength_attack_home":  1200,
+                      "strength_attack_away":  1180,
+                      "strength_defence_home":  1190,
+                      "strength_defence_away":  1170
                   },
                   {
                       "id":  14,
                       "name":  "Liverpool",
-                      "short_name":  "LIV"
+                      "short_name":  "LIV",
+                      "strength_attack_home":  1340,
+                      "strength_attack_away":  1300,
+                      "strength_defence_home":  1250,
+                      "strength_defence_away":  1220
                   },
                   {
                       "id":  15,
                       "name":  "Man City",
-                      "short_name":  "MCI"
+                      "short_name":  "MCI",
+                      "strength_attack_home":  1360,
+                      "strength_attack_away":  1330,
+                      "strength_defence_home":  1280,
+                      "strength_defence_away":  1240
                   },
                   {
                       "id":  16,
                       "name":  "Man Utd",
-                      "short_name":  "MUN"
+                      "short_name":  "MUN",
+                      "strength_attack_home":  1180,
+                      "strength_attack_away":  1160,
+                      "strength_defence_home":  1150,
+                      "strength_defence_away":  1130
                   }
               ],
     "element_types":  [
@@ -90,5 +130,16 @@
                               "id":  4,
                               "singular_name_short":  "FWD"
                           }
-                      ]
+                      ],
+    "events":  [
+                   {
+                       "id":  1,
+                       "name":  "Gameweek 1",
+                       "deadline_time":  "2026-08-15T17:30:00Z",
+                       "finished":  false,
+                       "is_previous":  false,
+                       "is_current":  false,
+                       "is_next":  true
+                   }
+               ]
 }

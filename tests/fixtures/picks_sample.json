@@ -1,0 +1,15 @@
+{
+    "active_chip": null,
+    "entry_history": {
+        "bank": 15,
+        "value": 1005,
+        "event_transfers": 1,
+        "event_transfers_cost": 0
+    },
+    "picks": [
+        {"element": 12, "position": 1, "is_captain": false, "is_vice_captain": false},
+        {"element": 154, "position": 2, "is_captain": false, "is_vice_captain": true},
+        {"element": 411, "position": 3, "is_captain": true, "is_vice_captain": false},
+        {"element": 379, "position": 12, "is_captain": false, "is_vice_captain": false}
+    ]
+}

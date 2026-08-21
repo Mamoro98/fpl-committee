@@ -1,0 +1,20 @@
+[
+    {
+        "event": 1,
+        "team_h": 1,
+        "team_a": 15,
+        "team_h_difficulty": 4,
+        "team_a_difficulty": 2,
+        "finished": false,
+        "kickoff_time": "2026-08-16T16:00:00Z"
+    },
+    {
+        "event": 1,
+        "team_h": 6,
+        "team_a": 14,
+        "team_h_difficulty": 3,
+        "team_a_difficulty": 3,
+        "finished": false,
+        "kickoff_time": "2026-08-16T13:00:00Z"
+    }
+]
