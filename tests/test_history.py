@@ -40,6 +40,50 @@ def test_histories_report_outcomes_and_picks(tmp_path):
     assert histories["risk"] == ""
 
 
+def test_penalties_appear_in_track_record_and_move_score(tmp_path):
+    memos = tmp_path / "memos"
+    memos.mkdir()
+    ledger = Ledger.new(agents=["scout", "risk", "hawk"], prior=17.0)
+
+    assert ledger.penalize(2, "scout", 2.0, "illegal bench") is True
+    assert ledger.penalize(2, "scout", 2.0, "double jeopardy") is False  # once per gw
+    assert ledger.scores()["scout"] == 15.0
+
+    path = tmp_path / "ledger.json"
+    ledger.save(path)
+    reloaded = Ledger.load(path)
+    assert reloaded.scores()["scout"] == 15.0
+    assert reloaded.penalties()[0]["reason"] == "illegal bench"
+
+    histories = build_agent_histories(FakeFpl(), reloaded, 3, memos, {})
+    assert "PENALTY -2.0" in histories["scout"]
+    assert "lose your committee seat" in histories["scout"]
+    assert "PENALTY" not in histories["hawk"]
+
+
+def test_debate_recap_includes_positions_attacks_and_pick(tmp_path):
+    from committee.history import build_debate_recap
+
+    memos = tmp_path / "memos"
+    memos.mkdir()
+    (memos / "gw2_thread.json").write_text(
+        json.dumps(
+            [
+                {"round": 1, "agent": "scout", "text": "round1 noise"},
+                {"round": 2, "agent": "hawk", "text": "OUT James, IN Mendy.",
+                 "attacks": ["Scout's Palmer move is vanity"]},
+            ]
+        )
+    )
+    recap = build_debate_recap(3, memos, make_ledger())
+
+    assert "LAST GAMEWEEK'S DEBATE (GW2)" in recap
+    assert "OUT James, IN Mendy." in recap
+    assert "Scout's Palmer move is vanity" in recap
+    assert "The manager picked hawk." in recap
+    assert "round1 noise" not in recap
+
+
 def test_debate_injects_history_only_into_own_context():
     prompts = {}
 
