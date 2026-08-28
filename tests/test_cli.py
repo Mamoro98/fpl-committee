@@ -164,7 +164,7 @@ def test_memo_writes_files(tmp_path, monkeypatch):
 
     from committee.agents import Suggestion
 
-    def fake_debate(client, context, ledger):
+    def fake_debate(client, context, ledger, histories=None):
         s = Suggestion(**SUGGESTION)
         return {"round1": {"scout": s}, "final": {"scout": s}}
 

@@ -23,6 +23,7 @@ from committee.debate import run_debate
 from committee.draft import run_draft_debate
 from committee.draft_memo import draft_thread, render_draft_memo
 from committee.fpl import FplClient
+from committee.history import build_agent_histories
 from committee.llm import LlmClient
 from committee.manual import load_manual_squad, resolve_names, save_manual_squad
 from committee.memo import debate_thread, render_memo
@@ -312,7 +313,9 @@ def _do_memo(gw: int) -> dict:
     except httpx.HTTPError:
         fixtures = {}
     context = build_context(players, gw, squad=squad, fixtures=fixtures)
-    result = run_debate(client, context, ledger)
+    names_lookup = {p.id: p.name for p in players}
+    histories = build_agent_histories(fpl, ledger, gw, MEMOS_DIR, names_lookup)
+    result = run_debate(client, context, ledger, histories=histories)
 
     MEMOS_DIR.mkdir(exist_ok=True)
     names = {p.id: p.name for p in players}
