@@ -537,8 +537,11 @@ function showTab(tab) {
       <p style="margin:0.25rem 0 0;">${t.text}</p>
       ${(t.attacks || []).map(a => `<p class="attack">${a}</p>`).join("")}
     </div>`).join("");
+  const benchNote = prop.bench_fixed
+    ? ' <span style="color:var(--foul); text-transform:none;">(bench auto-fixed: the agent submitted an illegal bench)</span>'
+    : "";
   $("agentview").innerHTML = `
-    <div class="roundhead">${tab}'s GW${d.gw} team: ${prop.formation}. Out ${prop.transfer_out}, in ${prop.transfer_in}</div>
+    <div class="roundhead">${tab}'s GW${d.gw} team: ${prop.formation}. Out ${prop.transfer_out}, in ${prop.transfer_in}${benchNote}</div>
     <div id="agentpitch"></div>${argHtml}`;
   renderPitchInto(document.getElementById("agentpitch"), prop.players, "");
   if (d.can_pick) showPickRow(d.gw, [tab]); else $("pickrow").hidden = true;

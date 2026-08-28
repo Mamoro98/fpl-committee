@@ -108,6 +108,21 @@ def _formation(starters: list) -> str:
     return f"{counts['DEF']}-{counts['MID']}-{counts['FWD']}"
 
 
+def _bench_is_legal(bench: list[int], ids: list[int], lookup) -> bool:
+    if len(bench) != 4 or len(set(bench)) != 4:
+        return False
+    if any(pid not in ids or pid not in lookup for pid in bench):
+        return False
+    bench_gk = sum(1 for pid in bench if lookup[pid].position == "GKP")
+    if bench_gk != 1:
+        return False
+    xi = [lookup[pid] for pid in ids if pid not in bench and pid in lookup]
+    defenders = sum(1 for p in xi if p.position == "DEF")
+    forwards = sum(1 for p in xi if p.position == "FWD")
+    keepers = sum(1 for p in xi if p.position == "GKP")
+    return keepers == 1 and defenders >= 3 and forwards >= 1
+
+
 def build_proposals(squad, lookup, suggestions: dict) -> dict:
     proposals = {}
     for agent, s in suggestions.items():
@@ -116,7 +131,9 @@ def build_proposals(squad, lookup, suggestions: dict) -> dict:
             ids.append(s["transfer_in"])
 
         bench = [pid for pid in (s.get("bench_order") or []) if pid in ids][:4]
-        if len(bench) != 4:
+        bench_fixed = False
+        if not _bench_is_legal(bench, ids, lookup):
+            bench_fixed = True
             original_bench = sorted(
                 (pid for pid, slot in squad.slots.items() if slot > 11),
                 key=lambda pid: squad.slots[pid],
@@ -150,6 +167,7 @@ def build_proposals(squad, lookup, suggestions: dict) -> dict:
         starters = [lookup[pid] for pid in ids if pid not in bench and pid in lookup]
         proposals[agent] = {
             "players": players,
+            "bench_fixed": bench_fixed,
             "formation": _formation(starters),
             "transfer_out": (lookup[s["transfer_out"]].name if s["transfer_out"] in lookup else s["transfer_out"]),
             "transfer_in": (lookup[s["transfer_in"]].name if s["transfer_in"] in lookup else s["transfer_in"]),

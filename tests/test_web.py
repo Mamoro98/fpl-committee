@@ -280,6 +280,36 @@ def test_build_proposals_applies_transfer_and_formation():
     assert prop["transfer_in"] == "NewGuy"
 
 
+def test_build_proposals_fixes_illegal_bench():
+    from committee.fpl import Squad
+    from committee.web import build_proposals
+
+    players = make_players()
+    lookup = {p.id: p for p in players}
+    # ids 14, 15 are the two GKPs. XI: 14 + defenders 9-12 + mids 4-7 + fwds 1-2.
+    slots = {14: 1, 9: 2, 10: 3, 11: 4, 12: 5, 4: 6, 5: 7, 6: 8, 7: 9, 1: 10, 2: 11,
+             15: 12, 8: 13, 13: 14, 3: 15}
+    squad = Squad(player_ids=list(range(1, 16)), bank=1.0, slots=slots, captain=1)
+
+    suggestion = {
+        "agent": "scout",
+        "transfer_out": 2,
+        "transfer_in": 3,  # already in squad on bench, degenerate but legal input
+        "captain": 1,
+        "bench_order": [14, 15, 8, 13],  # BOTH keepers benched: illegal
+        "rationale": "",
+        "attacks": [],
+    }
+
+    proposals = build_proposals(squad, lookup, {"scout": suggestion})
+    prop = proposals["scout"]
+
+    assert prop["bench_fixed"] is True
+    bench_ids = [p["id"] for p in prop["players"] if p["slot"] > 11]
+    keepers_on_bench = sum(1 for pid in bench_ids if lookup[pid].position == "GKP")
+    assert keepers_on_bench == 1
+
+
 def test_debate_detail_rejects_bad_names(client):
     assert client.get("/api/debates/evil-path").status_code == 400
     assert client.get("/api/debates/gw99").status_code == 404

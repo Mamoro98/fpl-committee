@@ -105,8 +105,11 @@ def build_context(players, gw: int, squad=None, fixtures=None) -> str:
         + fixture_block
         + '\n\nRespond with ONE JSON object only:\n{"transfer_in": <player id>, '
         '"transfer_out": <player id>, "captain": <player id>, "bench_order": '
-        '[<player ids>], "rationale": "<max 80 words>", "attacks": '
-        '["<round 2 only: specific criticism of a rival claim>"]}'
+        '[<4 player ids>], "rationale": "<max 80 words>", "attacks": '
+        '["<round 2 only: specific criticism of a rival claim>"]}\n'
+        "bench_order rules: exactly 4 ids from my squad after your transfer, "
+        "EXACTLY ONE goalkeeper among them (the other keeper starts), and the "
+        "remaining eleven must keep at least 3 DEF and at least 1 FWD."
     )
 
 
