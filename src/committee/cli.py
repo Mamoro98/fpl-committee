@@ -12,6 +12,7 @@ from committee.debate import run_debate
 from committee.draft import run_draft_debate
 from committee.draft_memo import render_draft_memo
 from committee.fpl import FplClient
+from committee.history import build_agent_histories
 from committee.ledger import Ledger
 from committee.llm import LlmClient
 from committee.memo import debate_thread, render_memo
@@ -120,7 +121,9 @@ def cmd_memo(args) -> None:
     except httpx.HTTPError:
         fixtures = {}
     context = build_context(players, args.gw, squad=squad, fixtures=fixtures)
-    result = run_debate(client, context, ledger)
+    names_lookup = {p.id: p.name for p in players}
+    histories = build_agent_histories(fpl, ledger, args.gw, MEMOS_DIR, names_lookup)
+    result = run_debate(client, context, ledger, histories=histories)
 
     MEMOS_DIR.mkdir(exist_ok=True)
     names = {p.id: p.name for p in players}
@@ -129,12 +132,18 @@ def cmd_memo(args) -> None:
     (MEMOS_DIR / f"gw{args.gw}_thread.json").write_text(
         json.dumps(debate_thread(result, names), indent=2), encoding="utf-8"
     )
+    suggestions = {agent: s.model_dump() for agent, s in result["final"].items()}
     (MEMOS_DIR / f"gw{args.gw}_suggestions.json").write_text(
-        json.dumps(
-            {agent: s.model_dump() for agent, s in result["final"].items()}, indent=2
-        ),
-        encoding="utf-8",
+        json.dumps(suggestions, indent=2), encoding="utf-8"
     )
+    if squad is not None and squad.slots:
+        from committee.web import build_proposals
+
+        lookup = {p.id: p for p in players}
+        (MEMOS_DIR / f"gw{args.gw}_proposals.json").write_text(
+            json.dumps(build_proposals(squad, lookup, suggestions), indent=2),
+            encoding="utf-8",
+        )
     print(memo)
 
 

@@ -22,11 +22,13 @@ def _round2_context(
     )
 
 
-def run_debate(client, context: str, ledger: Ledger) -> dict:
-    round1 = {name: run_agent(name, client, context) for name in AGENTS}
+def run_debate(client, context: str, ledger: Ledger, histories: dict | None = None) -> dict:
+    histories = histories or {}
+    base = {name: context + histories.get(name, "") for name in AGENTS}
+    round1 = {name: run_agent(name, client, base[name]) for name in AGENTS}
     scores = ledger.scores()
     final = {
-        name: run_agent(name, client, _round2_context(context, round1, scores, name))
+        name: run_agent(name, client, _round2_context(base[name], round1, scores, name))
         for name in AGENTS
     }
     return {"round1": round1, "final": final}
