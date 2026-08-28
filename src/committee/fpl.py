@@ -21,6 +21,9 @@ class Player(BaseModel):
 class Squad(BaseModel):
     player_ids: list[int]
     bank: float
+    slots: dict[int, int] = {}
+    captain: int | None = None
+    vice: int | None = None
 
 
 class FplClient:
@@ -51,9 +54,14 @@ class FplClient:
             if exc.response.status_code == 404:
                 return None
             raise
+        captain = next((p["element"] for p in data["picks"] if p["is_captain"]), None)
+        vice = next((p["element"] for p in data["picks"] if p["is_vice_captain"]), None)
         return Squad(
             player_ids=[p["element"] for p in data["picks"]],
             bank=data["entry_history"]["bank"] / 10,
+            slots={p["element"]: p["position"] for p in data["picks"]},
+            captain=captain,
+            vice=vice,
         )
 
     def get_current_gw(self) -> int | None:

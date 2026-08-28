@@ -5,6 +5,7 @@ import time
 import uuid
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -24,6 +25,9 @@ from committee.fpl import FplClient
 from committee.llm import LlmClient
 from committee.manual import load_manual_squad, resolve_names, save_manual_squad
 from committee.memo import debate_thread, render_memo
+
+load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 app = FastAPI(title="fpl-committee")
 
@@ -84,6 +88,9 @@ def _squad_players(snapshot, lookup) -> list[dict]:
             "position": p.position,
             "price": p.price,
             "status": p.status,
+            "slot": snapshot.slots.get(p.id),
+            "is_captain": p.id == snapshot.captain,
+            "is_vice": p.id == snapshot.vice,
         }
         for pid in snapshot.player_ids
         if (p := lookup.get(pid))
@@ -104,6 +111,7 @@ def squad() -> dict:
                 "bank": snapshot.bank,
                 "gw": gw,
                 "source": "fpl",
+                "has_xi": bool(snapshot.slots),
             }
 
     manual = load_manual_squad()
@@ -114,6 +122,7 @@ def squad() -> dict:
             "bank": manual.bank,
             "gw": None,
             "source": "manual",
+            "has_xi": False,
         }
 
     return {
