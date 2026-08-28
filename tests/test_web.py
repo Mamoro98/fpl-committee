@@ -310,6 +310,35 @@ def test_build_proposals_fixes_illegal_bench():
     assert keepers_on_bench == 1
 
 
+def test_build_proposals_fixes_captain_outside_squad():
+    from committee.fpl import Squad
+    from committee.web import build_proposals
+
+    players = make_players()
+    lookup = {p.id: p for p in players}
+    slots = {14: 1, 9: 2, 10: 3, 11: 4, 12: 5, 4: 6, 5: 7, 6: 8, 7: 9, 1: 10, 2: 11,
+             15: 12, 8: 13, 13: 14, 3: 15}
+    squad = Squad(player_ids=list(range(1, 16)), bank=1.0, slots=slots, captain=1)
+
+    suggestion = {
+        "agent": "scout",
+        "transfer_out": 2,
+        "transfer_in": 3,
+        "captain": 999,  # not in the squad
+        "bench_order": [15, 8, 13, 3],
+        "rationale": "",
+        "attacks": [],
+    }
+
+    prop = build_proposals(squad, lookup, {"scout": suggestion})["scout"]
+
+    assert prop["captain_fixed"] is True
+    captains = [p for p in prop["players"] if p["is_captain"]]
+    assert len(captains) == 1
+    assert captains[0]["id"] == 1  # falls back to the manager's real captain
+    assert captains[0]["slot"] <= 11
+
+
 def test_debate_detail_rejects_bad_names(client):
     assert client.get("/api/debates/evil-path").status_code == 400
     assert client.get("/api/debates/gw99").status_code == 404
