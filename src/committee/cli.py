@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 
 from committee.agents import AGENTS
@@ -40,7 +41,7 @@ def get_squad_for_gw(fpl: FplClient, gw: int):
     return load_manual_squad()
 
 
-def build_context(players, gw: int, squad=None) -> str:
+def build_context(players, gw: int, squad=None, fixtures=None) -> str:
     hot = sorted(players, key=lambda p: p.form, reverse=True)[:20]
     value = sorted(
         players,
@@ -58,17 +59,18 @@ def build_context(players, gw: int, squad=None) -> str:
             picked.append(p)
 
     def player_line(p):
+        news = f" news={p.news[:70]}" if getattr(p, "news", "") else ""
         return (
             f"id={p.id} {p.name} {p.team} {p.position} price={p.price} "
             f"form={p.form} points={p.total_points} owned={p.ownership}% "
-            f"status={p.status}"
+            f"status={p.status}{news}"
         )
 
     lines = [player_line(p) for p in picked]
+    lookup = {p.id: p for p in players}
 
     squad_block = ""
     if squad is not None:
-        lookup = {p.id: p for p in players}
         squad_lines = [
             player_line(lookup[pid]) for pid in squad.player_ids if pid in lookup
         ]
@@ -78,12 +80,28 @@ def build_context(players, gw: int, squad=None) -> str:
             "player's price):\n" + "\n".join(squad_lines)
         )
 
+    fixture_block = ""
+    if fixtures:
+        relevant = {p.team for p in picked}
+        if squad is not None:
+            relevant |= {lookup[pid].team for pid in squad.player_ids if pid in lookup}
+        fixture_lines = [
+            f"{team}: {', '.join(fixtures[team])}"
+            for team in sorted(relevant)
+            if fixtures.get(team)
+        ]
+        fixture_block = (
+            "\n\nUPCOMING FIXTURES (H=home, A=away, diff 1=easiest to 5=hardest):\n"
+            + "\n".join(fixture_lines)
+        )
+
     return (
         f"Gameweek {gw}. Recommend ONE transfer (out, in), a captain, and a bench "
         "order, using only players from this list. Low owned= values are "
         "differentials.\n"
         + "\n".join(lines)
         + squad_block
+        + fixture_block
         + '\n\nRespond with ONE JSON object only:\n{"transfer_in": <player id>, '
         '"transfer_out": <player id>, "captain": <player id>, "bench_order": '
         '[<player ids>], "rationale": "<max 80 words>", "attacks": '
@@ -97,7 +115,11 @@ def cmd_memo(args) -> None:
     ledger = load_ledger()
     players = fpl.get_players()
     squad = get_squad_for_gw(fpl, args.gw)
-    context = build_context(players, args.gw, squad=squad)
+    try:
+        fixtures = fpl.get_team_fixtures()
+    except httpx.HTTPError:
+        fixtures = {}
+    context = build_context(players, args.gw, squad=squad, fixtures=fixtures)
     result = run_debate(client, context, ledger)
 
     MEMOS_DIR.mkdir(exist_ok=True)

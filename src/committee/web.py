@@ -5,6 +5,7 @@ import time
 import uuid
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
@@ -306,7 +307,11 @@ def _do_memo(gw: int) -> dict:
     ledger = load_ledger()
     players = fpl.get_players()
     squad = get_squad_for_gw(fpl, gw)
-    context = build_context(players, gw, squad=squad)
+    try:
+        fixtures = fpl.get_team_fixtures()
+    except httpx.HTTPError:
+        fixtures = {}
+    context = build_context(players, gw, squad=squad, fixtures=fixtures)
     result = run_debate(client, context, ledger)
 
     MEMOS_DIR.mkdir(exist_ok=True)

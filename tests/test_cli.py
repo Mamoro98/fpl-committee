@@ -121,6 +121,18 @@ def test_get_squad_fetches_previous_gw(monkeypatch):
     assert cli.get_squad_for_gw(FakeFpl(), gw=5) == "squad-sentinel"
 
 
+def test_build_context_includes_fixtures_and_news():
+    players = [make_player(pid, form=5.0, ownership=45.0) for pid in range(1, 20)]
+    players[0].news = "Hamstring injury - 75% chance of playing"
+    fixtures = {"Chelsea": ["GW3 BOU (H, diff 2)", "GW4 MUN (A, diff 3)"]}
+
+    context = cli.build_context(players, gw=3, fixtures=fixtures)
+
+    assert "UPCOMING FIXTURES" in context
+    assert "Chelsea: GW3 BOU (H, diff 2), GW4 MUN (A, diff 3)" in context
+    assert "news=Hamstring injury" in context
+
+
 def test_build_context_has_no_duplicate_players():
     players = [make_player(pid, form=5.0, ownership=5.0) for pid in range(1, 15)]
     context = cli.build_context(players, gw=2)
@@ -146,6 +158,9 @@ def test_memo_writes_files(tmp_path, monkeypatch):
     class FakeFpl:
         def get_players(self):
             return [FakePlayer(1, "Haaland"), FakePlayer(2, "Palmer")]
+
+        def get_team_fixtures(self):
+            return {}
 
     from committee.agents import Suggestion
 
