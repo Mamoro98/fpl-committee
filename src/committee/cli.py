@@ -13,7 +13,7 @@ from committee.draft_memo import render_draft_memo
 from committee.fpl import FplClient
 from committee.ledger import Ledger
 from committee.llm import LlmClient
-from committee.memo import render_memo
+from committee.memo import debate_thread, render_memo
 
 LEDGER_PATH = Path("ledger.json")
 MEMOS_DIR = Path("memos")
@@ -104,6 +104,9 @@ def cmd_memo(args) -> None:
     names = {p.id: p.name for p in players}
     memo = render_memo(result, ledger, args.gw, players=names)
     (MEMOS_DIR / f"gw{args.gw}.md").write_text(memo, encoding="utf-8")
+    (MEMOS_DIR / f"gw{args.gw}_thread.json").write_text(
+        json.dumps(debate_thread(result, names), indent=2), encoding="utf-8"
+    )
     (MEMOS_DIR / f"gw{args.gw}_suggestions.json").write_text(
         json.dumps(
             {agent: s.model_dump() for agent, s in result["final"].items()}, indent=2
