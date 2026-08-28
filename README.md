@@ -45,6 +45,14 @@ copy .env.example .env    # then fill in:
 
 A weekly debate costs a few cents. Before the season's first gameweek is played, FPL keeps squads private; the dashboard has a paste-your-team form for that window and switches to the live API on its own afterwards.
 
+### Finding your FPL entry ID
+
+1. Log in at fantasy.premierleague.com and open the **Points** tab.
+2. Look at the address bar: `fantasy.premierleague.com/entry/1234567/event/2`.
+3. The number between `entry/` and `/event` is your ID. Put it in `.env` as `FPL_ENTRY_ID=1234567`.
+
+If the Points page does not exist yet (new team, season not started), open `fantasy.premierleague.com/api/me/` in the same logged-in browser and read the number next to `"entry"` in the JSON.
+
 ## Development
 
 ```
