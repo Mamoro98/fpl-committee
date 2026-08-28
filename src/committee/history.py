@@ -42,6 +42,14 @@ def build_agent_histories(
                 + ("The manager PICKED you." if picked else "The manager did not pick you.")
             )
 
+    for penalty in ledger.penalties():
+        agent = penalty["agent"]
+        if agent in per_agent:
+            per_agent[agent].append(
+                f"GW{penalty['gw']}: PENALTY -{penalty['amount']:.1f} reputation "
+                f"for {penalty['reason']}. Repeat violations lose your committee seat."
+            )
+
     return {
         agent: (
             "\n\nYOUR TRACK RECORD (real outcomes of your past advice; learn from "
@@ -52,3 +60,32 @@ def build_agent_histories(
         )
         for agent, lines in per_agent.items()
     }
+
+
+def build_debate_recap(up_to_gw: int, memos_dir: Path, ledger: Ledger) -> str:
+    """Shared block: last gameweek's final positions, attacks, and the pick."""
+    last_gw = up_to_gw - 1
+    path = memos_dir / f"gw{last_gw}_thread.json"
+    if not path.exists():
+        return ""
+    thread = json.loads(path.read_text(encoding="utf-8"))
+    lines = []
+    for turn in thread:
+        if turn.get("round") != 2:
+            continue
+        lines.append(f"{turn['agent']}: {turn['text']}")
+        for attack in turn.get("attacks", []):
+            lines.append(f"  {turn['agent']} attacked: {attack}")
+    if not lines:
+        return ""
+    entry = next((e for e in ledger.history() if e["gw"] == last_gw), None)
+    picked = (
+        f"The manager picked {entry['picked']}."
+        if entry
+        else "The manager picked nobody."
+    )
+    return (
+        f"\n\nLAST GAMEWEEK'S DEBATE (GW{last_gw}), final positions and attacks:\n"
+        + "\n".join(lines)
+        + f"\n{picked}"
+    )

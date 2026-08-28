@@ -23,7 +23,7 @@ from committee.debate import run_debate
 from committee.draft import run_draft_debate
 from committee.draft_memo import draft_thread, render_draft_memo
 from committee.fpl import FplClient
-from committee.history import build_agent_histories
+from committee.history import build_agent_histories, build_debate_recap
 from committee.llm import LlmClient
 from committee.manual import load_manual_squad, resolve_names, save_manual_squad
 from committee.memo import debate_thread, render_memo
@@ -180,6 +180,10 @@ def build_proposals(squad, lookup, suggestions: dict) -> dict:
             )
         starters = [lookup[pid] for pid in ids if pid not in bench and pid in lookup]
         proposals[agent] = {
+            "violations": (
+                (["illegal bench"] if bench_fixed else [])
+                + (["captain outside the starting squad"] if captain_fixed else [])
+            ),
             "players": players,
             "bench_fixed": bench_fixed,
             "captain_fixed": captain_fixed,
@@ -244,6 +248,19 @@ def set_manual_squad(payload: ManualSquadPayload) -> dict:
         }
     save_manual_squad([p.id for p in resolved], payload.bank)
     return {"ok": True, "matched": len(resolved)}
+
+
+VIOLATION_PENALTY = 2.0
+
+
+def apply_violation_penalties(ledger, gw: int, proposals: dict) -> bool:
+    changed = False
+    for agent, prop in proposals.items():
+        if prop.get("violations"):
+            changed |= ledger.penalize(
+                gw, agent, VIOLATION_PENALTY, " and ".join(prop["violations"])
+            )
+    return changed
 
 
 @app.get("/api/scoreboard")
@@ -346,6 +363,7 @@ def _do_memo(gw: int) -> dict:
     except httpx.HTTPError:
         fixtures = {}
     context = build_context(players, gw, squad=squad, fixtures=fixtures)
+    context += build_debate_recap(gw, MEMOS_DIR, ledger)
     names_lookup = {p.id: p.name for p in players}
     histories = build_agent_histories(fpl, ledger, gw, MEMOS_DIR, names_lookup)
     result = run_debate(client, context, ledger, histories=histories)
@@ -370,6 +388,8 @@ def _do_memo(gw: int) -> dict:
         (MEMOS_DIR / f"gw{gw}_proposals.json").write_text(
             json.dumps(proposals, indent=2), encoding="utf-8"
         )
+        if apply_violation_penalties(ledger, gw, proposals):
+            ledger.save(LEDGER_PATH)
 
     return {"memo": text, "agents": AGENTS, "thread": thread, "proposals": proposals}
 
