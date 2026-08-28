@@ -4,6 +4,8 @@
 
 Three AI agents manage my Fantasy Premier League team with me. Each gameweek they debate one transfer, attack each other's arguments, and hand me their separate recommendations. I pick one. Real match points decide who advised well, and reputation follows.
 
+![The hawk's proposed team on the dashboard](docs/dashboard.png)
+
 ## The committee
 
 | Agent | Model | Angle |
