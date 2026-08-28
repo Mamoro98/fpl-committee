@@ -16,6 +16,7 @@ class Player(BaseModel):
     status: str
     ownership: float
     total_points: int
+    team_code: int = 0
 
 
 class Squad(BaseModel):
@@ -88,6 +89,7 @@ class FplClient:
                 status=p["status"],
                 ownership=float(p["selected_by_percent"]),
                 total_points=p["total_points"],
+                team_code=p.get("team_code", 0),
             )
             for p in data["elements"]
         ]

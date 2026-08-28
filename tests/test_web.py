@@ -238,6 +238,45 @@ def test_debates_archive_lists_and_serves_saved_debate(client, tmp_path):
     assert client.get("/api/debates").json()["debates"][1]["picked"] == "scout"
 
 
+def test_build_proposals_applies_transfer_and_formation():
+    from committee.fpl import Squad
+    from committee.web import build_proposals
+
+    players = make_players()
+    lookup = {p.id: p for p in players}
+    # squad: ids 1-15. XI slots 1-11, bench 12-15. FWDs are ids 1-3, MIDs 4-8, DEFs 9-13, GKPs 14-15.
+    slots = {14: 1, 9: 2, 10: 3, 11: 4, 12: 5, 4: 6, 5: 7, 6: 8, 7: 9, 1: 10, 2: 11,
+             15: 12, 8: 13, 13: 14, 3: 15}
+    squad = Squad(player_ids=list(range(1, 16)), bank=1.0, slots=slots, captain=1)
+
+    suggestion = {
+        "agent": "scout",
+        "transfer_out": 2,   # a FWD leaves the XI
+        "transfer_in": 99,
+        "captain": 1,
+        "bench_order": [15, 8, 13, 3],
+        "rationale": "",
+        "attacks": [],
+    }
+    from committee.fpl import Player
+
+    lookup[99] = Player(id=99, name="NewGuy", team="Spurs", position="MID", price=5.0,
+                        form=3.0, status="a", ownership=5.0, total_points=20, team_code=6)
+
+    proposals = build_proposals(squad, lookup, {"scout": suggestion})
+    prop = proposals["scout"]
+
+    ids = [p["id"] for p in prop["players"]]
+    assert 2 not in ids and 99 in ids
+    incoming = next(p for p in prop["players"] if p["id"] == 99)
+    assert incoming["incoming"] is True
+    assert incoming["slot"] == 1  # in the XI, not benched
+    # XI was 4 DEF, 4 MID, 2 FWD; out a FWD, in a MID
+    assert prop["formation"] == "4-5-1"
+    assert prop["transfer_out"] == "Isak"
+    assert prop["transfer_in"] == "NewGuy"
+
+
 def test_debate_detail_rejects_bad_names(client):
     assert client.get("/api/debates/evil-path").status_code == 400
     assert client.get("/api/debates/gw99").status_code == 404
