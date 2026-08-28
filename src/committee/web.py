@@ -88,6 +88,7 @@ def _squad_players(snapshot, lookup) -> list[dict]:
             "position": p.position,
             "price": p.price,
             "status": p.status,
+            "team_code": p.team_code,
             "slot": snapshot.slots.get(p.id),
             "is_captain": p.id == snapshot.captain,
             "is_vice": p.id == snapshot.vice,
@@ -95,6 +96,63 @@ def _squad_players(snapshot, lookup) -> list[dict]:
         for pid in snapshot.player_ids
         if (p := lookup.get(pid))
     ]
+
+
+def _formation(starters: list) -> str:
+    counts = {"DEF": 0, "MID": 0, "FWD": 0}
+    for p in starters:
+        if p.position in counts:
+            counts[p.position] += 1
+    return f"{counts['DEF']}-{counts['MID']}-{counts['FWD']}"
+
+
+def build_proposals(squad, lookup, suggestions: dict) -> dict:
+    proposals = {}
+    for agent, s in suggestions.items():
+        ids = [pid for pid in squad.player_ids if pid != s["transfer_out"]]
+        if s["transfer_in"] not in ids:
+            ids.append(s["transfer_in"])
+
+        bench = [pid for pid in (s.get("bench_order") or []) if pid in ids][:4]
+        if len(bench) != 4:
+            original_bench = sorted(
+                (pid for pid, slot in squad.slots.items() if slot > 11),
+                key=lambda pid: squad.slots[pid],
+            )
+            bench = [
+                s["transfer_in"] if pid == s["transfer_out"] else pid
+                for pid in original_bench
+            ]
+            bench = [pid for pid in bench if pid in ids][:4]
+
+        players = []
+        for pid in ids:
+            p = lookup.get(pid)
+            if p is None:
+                continue
+            players.append(
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "team": p.team,
+                    "position": p.position,
+                    "price": p.price,
+                    "status": p.status,
+                    "team_code": p.team_code,
+                    "slot": 12 + bench.index(pid) if pid in bench else 1,
+                    "is_captain": pid == s["captain"],
+                    "is_vice": False,
+                    "incoming": pid == s["transfer_in"],
+                }
+            )
+        starters = [lookup[pid] for pid in ids if pid not in bench and pid in lookup]
+        proposals[agent] = {
+            "players": players,
+            "formation": _formation(starters),
+            "transfer_out": (lookup[s["transfer_out"]].name if s["transfer_out"] in lookup else s["transfer_out"]),
+            "transfer_in": (lookup[s["transfer_in"]].name if s["transfer_in"] in lookup else s["transfer_in"]),
+        }
+    return proposals
 
 
 @app.get("/api/squad")
@@ -204,12 +262,19 @@ def debate_detail(name: str) -> dict:
         ledger = load_ledger()
         already = any(e["gw"] == gw for e in ledger.history())
         can_pick = not already and (MEMOS_DIR / f"{name}_suggestions.json").exists()
+    proposals_path = MEMOS_DIR / f"{name}_proposals.json"
+    proposals = (
+        json.loads(proposals_path.read_text(encoding="utf-8"))
+        if proposals_path.exists()
+        else {}
+    )
     return {
         "memo": memo_path.read_text(encoding="utf-8"),
         "thread": thread,
         "agents": AGENTS,
         "gw": gw,
         "can_pick": can_pick,
+        "proposals": proposals,
     }
 
 
@@ -252,13 +317,20 @@ def _do_memo(gw: int) -> dict:
     (MEMOS_DIR / f"gw{gw}_thread.json").write_text(
         json.dumps(thread, indent=2), encoding="utf-8"
     )
+    suggestions = {agent: s.model_dump() for agent, s in result["final"].items()}
     (MEMOS_DIR / f"gw{gw}_suggestions.json").write_text(
-        json.dumps(
-            {agent: s.model_dump() for agent, s in result["final"].items()}, indent=2
-        ),
-        encoding="utf-8",
+        json.dumps(suggestions, indent=2), encoding="utf-8"
     )
-    return {"memo": text, "agents": AGENTS, "thread": thread}
+
+    proposals = {}
+    if squad is not None and squad.slots:
+        lookup = {p.id: p for p in players}
+        proposals = build_proposals(squad, lookup, suggestions)
+        (MEMOS_DIR / f"gw{gw}_proposals.json").write_text(
+            json.dumps(proposals, indent=2), encoding="utf-8"
+        )
+
+    return {"memo": text, "agents": AGENTS, "thread": thread, "proposals": proposals}
 
 
 @app.post("/api/memo/{gw}")

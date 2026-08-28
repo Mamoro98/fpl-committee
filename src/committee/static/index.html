@@ -74,29 +74,67 @@
   .score-cell { text-align: right; font-size: 1.15rem; }
   .picked-cell { text-align: right; color: var(--chalk-dim); font-size: 0.8rem; width: 4.5rem; }
 
-  /* Team sheet: pitch view */
-  .pitch {
-    border: 1.5px solid var(--line); border-radius: 6px;
-    padding: 0.8rem 0.3rem 0.5rem;
-    background: linear-gradient(color-mix(in srgb, var(--chalk) 5%, transparent), transparent);
+  /* Team sheet: FPL-style pitch */
+  .fpl-pitch {
+    position: relative; border-radius: 6px 6px 0 0; overflow: hidden;
+    background: linear-gradient(180deg, #43b25f 0%, #2f9048 60%, #27803e 100%);
+    padding: 1.2rem 0.3rem 0.8rem;
   }
-  .pitch .prow { display: flex; justify-content: space-evenly; margin: 0.4rem 0; }
-  .pcard { text-align: center; position: relative; min-width: 3.4rem; padding: 0.1rem 0.15rem; }
+  .fpl-pitch::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.6;
+    background:
+      radial-gradient(circle at 50% 64%, transparent 52px, rgba(255,255,255,0.7) 53px, rgba(255,255,255,0.7) 55px, transparent 56px),
+      linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)) 50% 64% / 100% 2px no-repeat;
+  }
+  .fpl-pitch::after {
+    content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 45%; height: 3.2rem; pointer-events: none; opacity: 0.6;
+    border: 2px solid rgba(255,255,255,0.7); border-top: 0;
+  }
+  .fpl-pitch .prow { display: flex; justify-content: space-evenly; margin: 0.45rem 0; position: relative; z-index: 1; }
+  .pcard { text-align: center; position: relative; width: 4.4rem; }
+  .shirt { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
   .pname {
-    font-size: 0.78rem; font-weight: 600; max-width: 5.6rem;
+    background: #fff; color: #1a1a1a; font-size: 0.68rem; font-weight: 600;
+    border-radius: 2px 2px 0 0; padding: 0.1rem 0.15rem;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .pprice { font-size: 0.7rem; color: var(--chalk-dim); }
-  .band {
-    position: absolute; top: -0.55rem; right: -0.1rem;
-    background: var(--armband); color: var(--board);
-    font: 700 0.65rem "Barlow Condensed", sans-serif;
-    border-radius: 3px; padding: 0 0.3rem;
+  .pprice {
+    background: #37003c; color: #fff; font-size: 0.66rem;
+    border-radius: 0 0 2px 2px; padding: 0.08rem 0.15rem;
   }
-  .band.vice { background: var(--chalk-dim); }
-  .bench {
-    display: flex; justify-content: space-evenly; opacity: 0.75;
-    border-top: 1px dashed var(--line); margin-top: 0.6rem; padding-top: 0.6rem;
+  .band {
+    position: absolute; top: -0.35rem; left: -0.25rem; z-index: 2;
+    background: var(--armband); color: #1a1a1a;
+    font: 700 0.62rem "Barlow Condensed", sans-serif;
+    border-radius: 50%; width: 1.05rem; height: 1.05rem; line-height: 1.05rem;
+  }
+  .band.vice { background: #d8d8d8; }
+  .intag {
+    position: absolute; top: -0.35rem; right: -0.25rem; z-index: 2;
+    background: var(--accent, #00ff87); background: #00ff87; color: #1a1a1a;
+    font: 700 0.58rem "Barlow Condensed", sans-serif; border-radius: 2px; padding: 0 0.2rem;
+  }
+  .pcard.incoming .pname { outline: 2px solid #00ff87; }
+  .fpl-bench {
+    display: flex; justify-content: space-evenly; align-items: end;
+    background: #d8ecdc; border-radius: 0 0 6px 6px; padding: 0.5rem 0.3rem 0.6rem;
+  }
+  .bslot { text-align: center; font: 700 0.62rem "Barlow Condensed", sans-serif; color: #37003c; margin-bottom: 0.15rem; text-transform: uppercase; }
+
+  /* Agent tabs */
+  #tabs { margin: 1rem 0 0.2rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  #tabs:empty { display: none; }
+  .tab { background: transparent; color: var(--chalk); border: 1px solid var(--line); text-transform: capitalize; }
+  .tab.active { background: var(--chalk); color: var(--board); }
+  #agentview .roundhead {
+    font-family: "Barlow Condensed", sans-serif; text-transform: uppercase;
+    color: var(--chalk-dim); letter-spacing: 0.08em; margin: 0.8rem 0 0.5rem;
+    border-bottom: 1px dashed var(--line); padding-bottom: 0.25rem;
+  }
+  #agentview .turn {
+    border-left: 3px solid var(--line); padding: 0.5rem 0.8rem; margin: 0.5rem 0;
+    background: color-mix(in srgb, var(--board) 70%, var(--board-deep));
   }
 
   /* Team sheet */
@@ -225,6 +263,8 @@
       </div>
       <div id="pickrow" hidden><span class="display" style="color: var(--chalk-dim);">Your pick:</span></div>
       <p id="status"></p>
+      <div id="tabs"></div>
+      <section id="agentview"></section>
       <section id="thread"></section>
       <article id="memo"></article>
     </section>
@@ -339,24 +379,40 @@ async function refreshSquad() {
     rows + `<div class="posrow"><span class="poslabel">BANK</span><span class="num">${data.bank}m</span> <span style="color:var(--chalk-dim)">(${sourceNote})</span></div>`;
 }
 
+const shirtUrl = (p) =>
+  `https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${p.team_code}${p.position === "GKP" ? "_1" : ""}-66.png`;
+
 function pitchCard(p) {
   const badge = p.is_captain ? '<span class="band">C</span>'
     : (p.is_vice ? '<span class="band vice">V</span>' : "");
+  const inTag = p.incoming ? '<span class="intag">IN</span>' : "";
   const flag = p.status !== "a" ? ' <span class="flag" title="injury or doubt">!</span>' : "";
-  return `<div class="pcard">${badge}<div class="pname">${p.name}${flag}</div><div class="pprice num">${p.price}</div></div>`;
+  return `<div class="pcard${p.incoming ? " incoming" : ""}">${badge}${inTag}
+    <img class="shirt" src="${shirtUrl(p)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+    <div class="pname">${p.name}${flag}</div><div class="pprice num">${p.price}</div></div>`;
 }
 
-function renderPitch(data) {
-  const starters = data.squad.filter(p => p.slot <= 11);
-  const bench = data.squad.filter(p => p.slot > 11).sort((a, b) => a.slot - b.slot);
+function renderPitchInto(el, players, footer) {
+  const starters = players.filter(p => p.slot <= 11);
+  const bench = players.filter(p => p.slot > 11).sort((a, b) => a.slot - b.slot);
   const rows = ["GKP", "DEF", "MID", "FWD"].map(pos =>
     `<div class="prow">${starters.filter(p => p.position === pos).map(pitchCard).join("")}</div>`
   ).join("");
-  $("squad").innerHTML =
-    `<div class="pitch">${rows}</div>
-     <div class="bench">${bench.map(pitchCard).join("")}</div>
-     <div class="posrow"><span class="poslabel">BANK</span><span class="num">${data.bank}m</span>
-       <span style="color:var(--chalk-dim)">(as of GW${data.gw})</span></div>`;
+  const benchCards = bench.map((p, i) =>
+    `<div><div class="bslot">${i === 0 ? "GKP" : i + "."}</div>${pitchCard(p)}</div>`
+  ).join("");
+  el.innerHTML =
+    `<div class="fpl-pitch">${rows}</div>
+     <div class="fpl-bench">${benchCards}</div>` + (footer || "");
+}
+
+function renderPitch(data) {
+  renderPitchInto(
+    $("squad"),
+    data.squad,
+    `<div class="posrow"><span class="poslabel">BANK</span><span class="num">${data.bank}m</span>
+       <span style="color:var(--chalk-dim)">(as of GW${data.gw})</span></div>`
+  );
 }
 
 async function saveManualSquad() {
@@ -448,14 +504,52 @@ async function refreshArchive(activeName) {
   });
 }
 
+let currentDebate = null;
+
+function renderTabs(active) {
+  const d = currentDebate;
+  const hasProposals = d && d.proposals && Object.keys(d.proposals).length;
+  if (!hasProposals) { $("tabs").innerHTML = ""; return; }
+  const tabs = ["debate", ...Object.keys(d.proposals)];
+  $("tabs").innerHTML = tabs.map(t =>
+    `<button class="tab${t === active ? " active" : ""}" data-tab="${t}">${t === "debate" ? "Debate" : t}</button>`
+  ).join("");
+  $("tabs").querySelectorAll(".tab").forEach(b => { b.onclick = () => showTab(b.dataset.tab); });
+}
+
+function showTab(tab) {
+  const d = currentDebate;
+  renderTabs(tab);
+  if (tab === "debate" || !d.proposals || !d.proposals[tab]) {
+    $("agentview").innerHTML = "";
+    renderThread(d.thread);
+    $("memo").innerHTML = renderMarkdown(d.memo);
+    if (d.can_pick) showPickRow(d.gw, d.agents); else $("pickrow").hidden = true;
+    return;
+  }
+  $("thread").innerHTML = "";
+  $("memo").innerHTML = "";
+  const prop = d.proposals[tab];
+  const turns = (d.thread || []).filter(t => t.agent === tab);
+  const argHtml = turns.map(t => `
+    <div class="turn" style="border-left-color:${AGENT_COLORS[tab] || "var(--line)"}">
+      <span class="who">${tab} · round ${t.round}</span>
+      <p style="margin:0.25rem 0 0;">${t.text}</p>
+      ${(t.attacks || []).map(a => `<p class="attack">${a}</p>`).join("")}
+    </div>`).join("");
+  $("agentview").innerHTML = `
+    <div class="roundhead">${tab}'s GW${d.gw} team: ${prop.formation}. Out ${prop.transfer_out}, in ${prop.transfer_in}</div>
+    <div id="agentpitch"></div>${argHtml}`;
+  renderPitchInto(document.getElementById("agentpitch"), prop.players, "");
+  if (d.can_pick) showPickRow(d.gw, [tab]); else $("pickrow").hidden = true;
+}
+
 async function openDebate(name) {
   const r = await fetch(`/api/debates/${name}`);
   const data = await r.json();
   if (!r.ok) { status(data.detail || "could not load debate", true); return; }
-  renderThread(data.thread);
-  $("memo").innerHTML = renderMarkdown(data.memo);
-  if (data.can_pick) showPickRow(data.gw, data.agents);
-  else $("pickrow").hidden = true;
+  currentDebate = data;
+  showTab("debate");
   refreshArchive(name);
   status(name === "draft" ? "Squad draft, advice only." : `Viewing ${name.toUpperCase()} debate.`);
 }
@@ -464,20 +558,18 @@ $("btn-memo").onclick = async () => {
   const gw = $("gw").value;
   try {
     const data = await runJob(`/api/memo/${gw}`, `Committee is debating GW${gw}.`);
-    renderThread(data.thread);
-    $("memo").innerHTML = renderMarkdown(data.memo);
-    showPickRow(gw, data.agents);
+    currentDebate = { ...data, gw: Number(gw), can_pick: true };
+    showTab("debate");
     refreshArchive(`gw${gw}`);
-    status(`GW${gw} minutes are in. Read, then pick.`);
+    status(`GW${gw} minutes are in. Read, then pick. Each agent tab shows their proposed team.`);
   } catch (e) { status(e.message, true); }
 };
 
 $("btn-draft").onclick = async () => {
   try {
     const data = await runJob("/api/draft", "Drafting three full squads.");
-    renderThread(data.thread);
-    $("memo").innerHTML = renderMarkdown(data.memo);
-    $("pickrow").hidden = true;
+    currentDebate = { ...data, can_pick: false };
+    showTab("debate");
     refreshArchive("draft");
     status("Draft minutes are in. Advice only, nothing is scored.");
   } catch (e) { status(e.message, true); }
