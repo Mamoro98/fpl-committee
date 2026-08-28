@@ -144,6 +144,20 @@ def build_proposals(squad, lookup, suggestions: dict) -> dict:
             ]
             bench = [pid for pid in bench if pid in ids][:4]
 
+        captain = s["captain"]
+        captain_fixed = False
+        if captain not in ids or captain in bench:
+            captain_fixed = True
+            if squad.captain in ids and squad.captain not in bench:
+                captain = squad.captain
+            else:
+                starters_by_price = sorted(
+                    (pid for pid in ids if pid not in bench and pid in lookup),
+                    key=lambda pid: lookup[pid].price,
+                    reverse=True,
+                )
+                captain = starters_by_price[0] if starters_by_price else None
+
         players = []
         for pid in ids:
             p = lookup.get(pid)
@@ -159,7 +173,7 @@ def build_proposals(squad, lookup, suggestions: dict) -> dict:
                     "status": p.status,
                     "team_code": p.team_code,
                     "slot": 12 + bench.index(pid) if pid in bench else 1,
-                    "is_captain": pid == s["captain"],
+                    "is_captain": pid == captain,
                     "is_vice": False,
                     "incoming": pid == s["transfer_in"],
                 }
@@ -168,6 +182,7 @@ def build_proposals(squad, lookup, suggestions: dict) -> dict:
         proposals[agent] = {
             "players": players,
             "bench_fixed": bench_fixed,
+            "captain_fixed": captain_fixed,
             "formation": _formation(starters),
             "transfer_out": (lookup[s["transfer_out"]].name if s["transfer_out"] in lookup else s["transfer_out"]),
             "transfer_in": (lookup[s["transfer_in"]].name if s["transfer_in"] in lookup else s["transfer_in"]),

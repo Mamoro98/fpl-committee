@@ -109,7 +109,9 @@ def build_context(players, gw: int, squad=None, fixtures=None) -> str:
         '["<round 2 only: specific criticism of a rival claim>"]}\n'
         "bench_order rules: exactly 4 ids from my squad after your transfer, "
         "EXACTLY ONE goalkeeper among them (the other keeper starts), and the "
-        "remaining eleven must keep at least 3 DEF and at least 1 FWD."
+        "remaining eleven must keep at least 3 DEF and at least 1 FWD. "
+        "captain rules: the captain id MUST be a player in my squad after your "
+        "transfer and MUST be in the starting eleven, never on the bench."
     )
 
 
