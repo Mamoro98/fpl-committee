@@ -129,6 +129,7 @@ def test_build_context_has_no_duplicate_players():
 
 def test_memo_writes_files(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("FPL_ENTRY_ID", raising=False)
 
     class FakePlayer:
         def __init__(self, pid, name):
@@ -155,6 +156,7 @@ def test_memo_writes_files(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "FplClient", FakeFpl)
     monkeypatch.setattr(cli, "LlmClient", lambda: object())
     monkeypatch.setattr(cli, "run_debate", fake_debate)
+    monkeypatch.setattr(cli, "get_squad_for_gw", lambda fpl, gw: None)
 
     cli.main(["memo", "--gw", "3"])
 

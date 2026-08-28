@@ -58,7 +58,7 @@ def test_squad_endpoint_empty_state_invites_manual_entry(client, monkeypatch):
     assert "Paste your team" in data["reason"]
 
 
-def test_squad_endpoint_returns_players(client, monkeypatch):
+def test_squad_endpoint_returns_players_with_xi_detail(client, monkeypatch):
     monkeypatch.setenv("FPL_ENTRY_ID", "12345")
 
     from committee.fpl import Player, Squad
@@ -69,7 +69,7 @@ def test_squad_endpoint_returns_players(client, monkeypatch):
 
         def get_squad(self, entry_id, gw):
             assert (entry_id, gw) == (12345, 3)
-            return Squad(player_ids=[1], bank=2.0)
+            return Squad(player_ids=[1], bank=2.0, slots={1: 11}, captain=1)
 
         def get_players(self):
             return [
@@ -90,7 +90,9 @@ def test_squad_endpoint_returns_players(client, monkeypatch):
     data = client.get("/api/squad").json()
     assert data["gw"] == 3
     assert data["bank"] == 2.0
-    assert data["squad"][0]["name"] == "Haaland"
+    assert data["has_xi"] is True
+    assert data["squad"][0]["slot"] == 11
+    assert data["squad"][0]["is_captain"] is True
 
 
 def make_players():

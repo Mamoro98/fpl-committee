@@ -74,6 +74,31 @@
   .score-cell { text-align: right; font-size: 1.15rem; }
   .picked-cell { text-align: right; color: var(--chalk-dim); font-size: 0.8rem; width: 4.5rem; }
 
+  /* Team sheet: pitch view */
+  .pitch {
+    border: 1.5px solid var(--line); border-radius: 6px;
+    padding: 0.8rem 0.3rem 0.5rem;
+    background: linear-gradient(color-mix(in srgb, var(--chalk) 5%, transparent), transparent);
+  }
+  .pitch .prow { display: flex; justify-content: space-evenly; margin: 0.4rem 0; }
+  .pcard { text-align: center; position: relative; min-width: 3.4rem; padding: 0.1rem 0.15rem; }
+  .pname {
+    font-size: 0.78rem; font-weight: 600; max-width: 5.6rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pprice { font-size: 0.7rem; color: var(--chalk-dim); }
+  .band {
+    position: absolute; top: -0.55rem; right: -0.1rem;
+    background: var(--armband); color: var(--board);
+    font: 700 0.65rem "Barlow Condensed", sans-serif;
+    border-radius: 3px; padding: 0 0.3rem;
+  }
+  .band.vice { background: var(--chalk-dim); }
+  .bench {
+    display: flex; justify-content: space-evenly; opacity: 0.75;
+    border-top: 1px dashed var(--line); margin-top: 0.6rem; padding-top: 0.6rem;
+  }
+
   /* Team sheet */
   #squad .posrow { border-top: 1px dashed var(--line); padding: 0.45rem 0; }
   #squad .poslabel {
@@ -299,6 +324,7 @@ async function refreshSquad() {
     $("squad-save").onclick = saveManualSquad;
     return;
   }
+  if (data.has_xi) { renderPitch(data); return; }
   const order = ["GKP", "DEF", "MID", "FWD"];
   const rows = order.map(pos => {
     const chips = data.squad.filter(p => p.position === pos).map(p =>
@@ -311,6 +337,26 @@ async function refreshSquad() {
     : `as of GW${data.gw}`;
   $("squad").innerHTML =
     rows + `<div class="posrow"><span class="poslabel">BANK</span><span class="num">${data.bank}m</span> <span style="color:var(--chalk-dim)">(${sourceNote})</span></div>`;
+}
+
+function pitchCard(p) {
+  const badge = p.is_captain ? '<span class="band">C</span>'
+    : (p.is_vice ? '<span class="band vice">V</span>' : "");
+  const flag = p.status !== "a" ? ' <span class="flag" title="injury or doubt">!</span>' : "";
+  return `<div class="pcard">${badge}<div class="pname">${p.name}${flag}</div><div class="pprice num">${p.price}</div></div>`;
+}
+
+function renderPitch(data) {
+  const starters = data.squad.filter(p => p.slot <= 11);
+  const bench = data.squad.filter(p => p.slot > 11).sort((a, b) => a.slot - b.slot);
+  const rows = ["GKP", "DEF", "MID", "FWD"].map(pos =>
+    `<div class="prow">${starters.filter(p => p.position === pos).map(pitchCard).join("")}</div>`
+  ).join("");
+  $("squad").innerHTML =
+    `<div class="pitch">${rows}</div>
+     <div class="bench">${bench.map(pitchCard).join("")}</div>
+     <div class="posrow"><span class="poslabel">BANK</span><span class="num">${data.bank}m</span>
+       <span style="color:var(--chalk-dim)">(as of GW${data.gw})</span></div>`;
 }
 
 async function saveManualSquad() {
