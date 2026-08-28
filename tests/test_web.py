@@ -166,6 +166,9 @@ def test_memo_runs_as_background_job(client, monkeypatch):
         def get_players(self):
             return make_players()
 
+        def get_team_fixtures(self):
+            return {}
+
     def fake_debate(llm_client, context, ledger):
         s = Suggestion(**SUGGESTION)
         return {"round1": {"scout": s}, "final": {"scout": s}}
