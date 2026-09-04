@@ -23,6 +23,9 @@ class Player(BaseModel):
     total_points: int
     team_code: int = 0
     news: str = ""
+    price_change_week: float = 0.0
+    price_change_season: float = 0.0
+    net_transfers_week: int = 0
 
 
 class Squad(BaseModel):
@@ -153,6 +156,11 @@ class FplClient:
                 total_points=p["total_points"],
                 team_code=p.get("team_code", 0),
                 news=p.get("news") or "",
+                price_change_week=p.get("cost_change_event", 0) / 10,
+                price_change_season=p.get("cost_change_start", 0) / 10,
+                net_transfers_week=(
+                    p.get("transfers_in_event", 0) - p.get("transfers_out_event", 0)
+                ),
             )
             for p in data["elements"]
         ]

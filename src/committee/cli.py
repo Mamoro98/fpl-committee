@@ -53,6 +53,17 @@ def get_squad_for_gw(fpl: FplClient, gw: int):
     return load_manual_squad()
 
 
+def price_trend(p) -> str:
+    """Compact price signal: this week's change and net transfers driving the next one."""
+    net = getattr(p, "net_transfers_week", 0)
+    change = getattr(p, "price_change_week", 0.0)
+    if not net and not change:
+        return ""
+    net_k = f"{net / 1000:+.0f}k"
+    direction = "FALLING" if net < -50_000 else ("RISING" if net > 50_000 else "steady")
+    return f" price_change_wk={change:+.1f} net_transfers={net_k} ({direction})"
+
+
 def build_context(players, gw: int, squad=None, fixtures=None) -> str:
     hot = sorted(players, key=lambda p: p.form, reverse=True)[:20]
     value = sorted(
@@ -72,10 +83,11 @@ def build_context(players, gw: int, squad=None, fixtures=None) -> str:
 
     def player_line(p):
         news = f" news={p.news[:70]}" if getattr(p, "news", "") else ""
+        trend = price_trend(p)
         return (
             f"id={p.id} {p.name} {p.team} {p.position} price={p.price} "
             f"form={p.form} points={p.total_points} owned={p.ownership}% "
-            f"status={p.status}{news}"
+            f"status={p.status}{trend}{news}"
         )
 
     lines = [player_line(p) for p in picked]
@@ -110,7 +122,9 @@ def build_context(players, gw: int, squad=None, fixtures=None) -> str:
     return (
         f"Gameweek {gw}. Recommend ONE transfer (out, in), a captain, and a bench "
         "order, using only players from this list. Low owned= values are "
-        "differentials.\n"
+        "differentials. Prices move with net transfers: a FALLING player loses "
+        "0.1m soon (sell before the drop keeps the money), a RISING one costs "
+        "more next week (buy before the rise).\n"
         + "\n".join(lines)
         + squad_block
         + fixture_block
