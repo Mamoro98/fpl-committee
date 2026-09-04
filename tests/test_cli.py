@@ -121,6 +121,19 @@ def test_get_squad_fetches_previous_gw(monkeypatch):
     assert cli.get_squad_for_gw(FakeFpl(), gw=5) == "squad-sentinel"
 
 
+def test_build_context_flags_price_trend():
+    players = [make_player(pid, form=5.0, ownership=45.0) for pid in range(1, 20)]
+    players[0].price_change_week = -0.1
+    players[0].net_transfers_week = -171_140
+    players[1].net_transfers_week = 90_000
+
+    context = cli.build_context(players, gw=3)
+
+    assert "price_change_wk=-0.1 net_transfers=-171k (FALLING)" in context
+    assert "net_transfers=+90k (RISING)" in context
+    assert "sell before the drop" in context
+
+
 def test_build_context_includes_fixtures_and_news():
     players = [make_player(pid, form=5.0, ownership=45.0) for pid in range(1, 20)]
     players[0].news = "Hamstring injury - 75% chance of playing"
