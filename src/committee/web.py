@@ -28,6 +28,7 @@ from committee.fpl import FplClient
 from committee.history import build_agent_histories, build_debate_recap
 from committee.llm import LlmClient
 from committee.manual import load_manual_squad, resolve_names, save_manual_squad
+from committee.match_model import match_model_block_for_gw
 from committee.memo import debate_thread, render_memo
 
 load_dotenv()
@@ -366,6 +367,10 @@ def _do_memo(gw: int) -> dict:
         fixtures = {}
     context = build_context(players, gw, squad=squad, fixtures=fixtures)
     context += elite_block_for_gw(fpl, gw, players, MEMOS_DIR, elite_n())
+    try:
+        context += match_model_block_for_gw(fpl, gw)
+    except httpx.HTTPError:
+        pass
     context += build_debate_recap(gw, MEMOS_DIR, ledger)
     names_lookup = {p.id: p.name for p in players}
     histories = build_agent_histories(fpl, ledger, gw, MEMOS_DIR, names_lookup)

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 LIVE_URL = "https://fantasy.premierleague.com/api/event/{gw}/live/"
 FIXTURES_URL = "https://fantasy.premierleague.com/api/fixtures/?future=1"
+GW_FIXTURES_URL = "https://fantasy.premierleague.com/api/fixtures/?event={gw}"
 OVERALL_LEAGUE_URL = (
     "https://fantasy.premierleague.com/api/leagues-classic/314/standings/"
     "?page_standings={page}"
@@ -77,6 +78,23 @@ class FplClient:
             if exc.response.status_code == 404:
                 return None
             raise
+
+    def get_team_strengths(self) -> dict[int, dict]:
+        """FPL's overall strength ratings (2 to 5) per team, home and away."""
+        data = self._fetch_bootstrap()
+        return {
+            t["id"]: {
+                "short": t["short_name"],
+                "home": t["strength_overall_home"],
+                "away": t["strength_overall_away"],
+            }
+            for t in data["teams"]
+        }
+
+    def get_gw_fixtures_raw(self, gw: int) -> list:
+        response = httpx.get(GW_FIXTURES_URL.format(gw=gw), timeout=30)
+        response.raise_for_status()
+        return response.json()
 
     def get_team_fixtures(self, limit: int = 3) -> dict[str, list[str]]:
         """Per team: the next `limit` fixtures as 'GW3 BOU (H, diff 2)' strings."""
