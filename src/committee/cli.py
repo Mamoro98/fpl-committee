@@ -11,6 +11,13 @@ from committee.agents import AGENTS
 from committee.debate import run_debate
 from committee.draft import run_draft_debate
 from committee.draft_memo import render_draft_memo
+from committee.elite import (
+    DEFAULT_N,
+    build_elite_snapshot,
+    elite_block_for_gw,
+    render_elite_block,
+    save_elite_snapshot,
+)
 from committee.fpl import FplClient
 from committee.history import build_agent_histories, build_debate_recap
 from committee.ledger import Ledger
@@ -29,6 +36,10 @@ def load_ledger() -> Ledger:
 
 
 DIFFERENTIAL_OWNERSHIP = 10.0
+
+
+def elite_n() -> int:
+    return int(os.environ.get("ELITE_N", DEFAULT_N))
 
 
 def get_squad_for_gw(fpl: FplClient, gw: int):
@@ -126,6 +137,7 @@ def cmd_memo(args) -> None:
     except httpx.HTTPError:
         fixtures = {}
     context = build_context(players, args.gw, squad=squad, fixtures=fixtures)
+    context += elite_block_for_gw(fpl, args.gw, players, MEMOS_DIR, elite_n())
     context += build_debate_recap(args.gw, MEMOS_DIR, ledger)
     names_lookup = {p.id: p.name for p in players}
     histories = build_agent_histories(fpl, ledger, args.gw, MEMOS_DIR, names_lookup)
@@ -204,6 +216,13 @@ def cmd_draft(args) -> None:
     print(memo)
 
 
+def cmd_elite(args) -> None:
+    fpl = FplClient()
+    snapshot = build_elite_snapshot(fpl, args.gw, args.n)
+    save_elite_snapshot(snapshot, MEMOS_DIR)
+    print(render_elite_block(snapshot, fpl.get_players()))
+
+
 def cmd_web(args) -> None:
     import uvicorn
 
@@ -232,6 +251,11 @@ def main(argv=None) -> None:
     p_settle = sub.add_parser("settle", help="apply real points to the picked agent")
     p_settle.add_argument("--gw", type=int, required=True)
     p_settle.set_defaults(func=cmd_settle)
+
+    p_elite = sub.add_parser("elite", help="snapshot the top managers' squads for a GW")
+    p_elite.add_argument("--gw", type=int, required=True, help="a finished gameweek")
+    p_elite.add_argument("--n", type=int, default=elite_n())
+    p_elite.set_defaults(func=cmd_elite)
 
     p_web = sub.add_parser("web", help="serve the dashboard on localhost")
     p_web.add_argument("--port", type=int, default=8000)
