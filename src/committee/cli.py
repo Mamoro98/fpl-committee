@@ -264,6 +264,19 @@ def cmd_draft(args) -> None:
     print(memo)
 
 
+def cmd_fine(args) -> None:
+    """Manager's discretionary fine: reputation deducted, reason shown to the agent."""
+    ledger = load_ledger()
+    targets = AGENTS if args.agent == "all" else [args.agent]
+    for agent in targets:
+        applied = ledger.penalize(args.gw, agent, args.amount, args.reason)
+        state = "fined" if applied else "already fined this GW, skipped"
+        print(f"{agent}: {state}")
+    ledger.save(LEDGER_PATH)
+    for agent, score in sorted(ledger.scores().items(), key=lambda kv: -kv[1]):
+        print(f"{agent}: {score:.2f}")
+
+
 def cmd_elite(args) -> None:
     fpl = FplClient()
     snapshot = build_elite_snapshot(fpl, args.gw, args.n)
@@ -299,6 +312,13 @@ def main(argv=None) -> None:
     p_settle = sub.add_parser("settle", help="apply real points to the picked agent")
     p_settle.add_argument("--gw", type=int, required=True)
     p_settle.set_defaults(func=cmd_settle)
+
+    p_fine = sub.add_parser("fine", help="deduct reputation from an agent (or all) with a reason")
+    p_fine.add_argument("agent", choices=[*AGENTS, "all"])
+    p_fine.add_argument("--gw", type=int, required=True)
+    p_fine.add_argument("--amount", type=float, default=1.0)
+    p_fine.add_argument("--reason", required=True)
+    p_fine.set_defaults(func=cmd_fine)
 
     p_elite = sub.add_parser("elite", help="snapshot the top managers' squads for a GW")
     p_elite.add_argument("--gw", type=int, required=True, help="a finished gameweek")
