@@ -2,10 +2,12 @@ from committee.ledger import Ledger
 
 
 def suggestion_text(s, players: dict[int, str] | None = None) -> str:
-    return (
-        f"OUT {_name(players, s.transfer_out)}, IN {_name(players, s.transfer_in)}, "
-        f"captain {_name(players, s.captain)}. {s.rationale}"
-    )
+    moves = ", ".join(
+        f"OUT {_name(players, t.out)} IN {_name(players, t.in_)}" for t in s.transfers
+    ) or "no transfer"
+    chip = f" Chip: {s.chip}." if s.chip else ""
+    hits = f" ({len(s.transfers)} transfers)" if len(s.transfers) > 1 else ""
+    return f"{moves}{hits}, captain {_name(players, s.captain)}.{chip} {s.rationale}"
 
 
 def debate_thread(result: dict, players: dict[int, str] | None = None) -> list[dict]:
@@ -38,9 +40,11 @@ def render_memo(
     lines += ["## Recommendations", ""]
     lines += ["| Agent | Out | In | Captain | Rationale |", "|---|---|---|---|---|"]
     for agent, s in result["final"].items():
+        outs = ", ".join(_name(players, t.out) for t in s.transfers) or "none"
+        ins = ", ".join(_name(players, t.in_) for t in s.transfers) or "none"
+        chip = f" [{s.chip}]" if s.chip else ""
         lines.append(
-            f"| {agent} | {_name(players, s.transfer_out)} | {_name(players, s.transfer_in)} "
-            f"| {_name(players, s.captain)} | {s.rationale} |"
+            f"| {agent} | {outs} | {ins}{chip} | {_name(players, s.captain)} | {s.rationale} |"
         )
 
     attacks = [

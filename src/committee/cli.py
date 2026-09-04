@@ -7,7 +7,7 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-from committee.agents import AGENTS
+from committee.agents import AGENTS, CHIPS, suggestion_dict
 from committee.debate import run_debate
 from committee.draft import run_draft_debate
 from committee.draft_memo import render_draft_memo
@@ -24,6 +24,7 @@ from committee.ledger import Ledger
 from committee.llm import LlmClient
 from committee.match_model import match_model_block_for_gw
 from committee.memo import debate_thread, render_memo
+from committee.reward import compute_reward
 
 LEDGER_PATH = Path("ledger.json")
 MEMOS_DIR = Path("memos")
@@ -41,6 +42,33 @@ DIFFERENTIAL_OWNERSHIP = 10.0
 
 def elite_n() -> int:
     return int(os.environ.get("ELITE_N", DEFAULT_N))
+
+
+def free_transfers() -> int:
+    return int(os.environ.get("FREE_TRANSFERS", "1"))
+
+
+def build_manager_block(fpl, gw: int) -> str:
+    """Free transfers, hit cost, and chips still available to the manager."""
+    entry_id = os.environ.get("FPL_ENTRY_ID")
+    used: list[str] = []
+    if entry_id:
+        try:
+            used = fpl.get_chips_used(int(entry_id))
+        except httpx.HTTPError:
+            used = []
+    available = [c for c in CHIPS if c not in used]
+    ft = free_transfers()
+    return (
+        f"\n\nMANAGER STATUS: {ft} free transfer(s) this week. Every transfer beyond "
+        "that costs 4 points. Recommend extra transfers ONLY when the expected extra "
+        "points over the next 3 gameweeks clearly beat 4 per extra transfer, and say "
+        f"so in the rationale. Chips still available: {', '.join(available) or 'none'}. "
+        "wildcard = unlimited free transfers this week (send the full list of "
+        "transfers); freehit = unlimited transfers for one week only, squad reverts "
+        "after; bboost = bench points count this week; 3xc = captain scores triple. "
+        "Use a chip only when the gain is large and obvious, chips are once per season."
+    )
 
 
 def get_squad_for_gw(fpl: FplClient, gw: int):
@@ -121,7 +149,7 @@ def build_context(players, gw: int, squad=None, fixtures=None) -> str:
         )
 
     return (
-        f"Gameweek {gw}. Recommend ONE transfer (out, in), a captain, and a bench "
+        f"Gameweek {gw}. Recommend the transfers (usually one), a captain, and a bench "
         "order, using only players from this list. Low owned= values are "
         "differentials. Prices move with net transfers: a FALLING player loses "
         "0.1m soon (sell before the drop keeps the money), a RISING one costs "
@@ -129,11 +157,15 @@ def build_context(players, gw: int, squad=None, fixtures=None) -> str:
         + "\n".join(lines)
         + squad_block
         + fixture_block
-        + '\n\nRespond with ONE JSON object only:\n{"transfer_in": <player id>, '
-        '"transfer_out": <player id>, "captain": <player id>, "bench_order": '
-        '[<4 player ids>], "rationale": "<max 80 words>", "attacks": '
-        '["<round 2 only: specific criticism of a rival claim>"]}\n'
-        "bench_order rules: exactly 4 ids from my squad after your transfer, "
+        + '\n\nRespond with ONE JSON object only:\n{"transfers": [{"out": <player id>, '
+        '"in": <player id>}, ...], "chip": null or "wildcard"/"freehit"/"bboost"/"3xc", '
+        '"captain": <player id>, "bench_order": [<4 player ids>], "rationale": '
+        '"<max 80 words>", "attacks": ["<round 2 only: specific criticism of a '
+        'rival claim>"]}\n'
+        "transfers rules: one transfer is the default; every out id must be in my "
+        "squad, every in id must not be, and total in prices must fit bank plus "
+        "total out prices. "
+        "bench_order rules: exactly 4 ids from my squad after your transfers, "
         "EXACTLY ONE goalkeeper among them (the other keeper starts), and the "
         "remaining eleven must keep at least 3 DEF and at least 1 FWD. "
         "captain rules: the captain id MUST be a player in my squad after your "
@@ -157,6 +189,7 @@ def cmd_memo(args) -> None:
         context += match_model_block_for_gw(fpl, args.gw)
     except httpx.HTTPError:
         pass
+    context += build_manager_block(fpl, args.gw)
     context += build_debate_recap(args.gw, MEMOS_DIR, ledger)
     names_lookup = {p.id: p.name for p in players}
     histories = build_agent_histories(fpl, ledger, args.gw, MEMOS_DIR, names_lookup)
@@ -169,7 +202,7 @@ def cmd_memo(args) -> None:
     (MEMOS_DIR / f"gw{args.gw}_thread.json").write_text(
         json.dumps(debate_thread(result, names), indent=2), encoding="utf-8"
     )
-    suggestions = {agent: s.model_dump() for agent, s in result["final"].items()}
+    suggestions = {agent: suggestion_dict(s) for agent, s in result["final"].items()}
     (MEMOS_DIR / f"gw{args.gw}_suggestions.json").write_text(
         json.dumps(suggestions, indent=2), encoding="utf-8"
     )
@@ -208,15 +241,11 @@ def cmd_settle(args) -> None:
     suggestion = entry["suggestion"]
 
     points = FplClient().get_gw_points(args.gw)
-    reward = float(
-        10
-        + points.get(suggestion["transfer_in"], 0)
-        + points.get(suggestion["captain"], 0)
-    )
+    reward, breakdown = compute_reward(suggestion, points, free_transfers())
     ledger.settle(gw=args.gw, reward=reward)
     ledger.save(LEDGER_PATH)
 
-    print(f"GW{args.gw}: {entry['picked']} rewarded {reward:.1f}")
+    print(f"GW{args.gw}: {entry['picked']} rewarded {reward:.1f} {breakdown}")
     for agent, score in sorted(ledger.scores().items(), key=lambda kv: -kv[1]):
         print(f"{agent}: {score:.2f}")
 

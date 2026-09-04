@@ -178,6 +178,7 @@ def test_memo_runs_as_background_job(client, monkeypatch):
     monkeypatch.setattr(web, "get_squad_for_gw", lambda fpl, gw: None)
     monkeypatch.setattr(web, "run_debate", fake_debate)
     monkeypatch.setattr(web, "match_model_block_for_gw", lambda *a, **k: "")
+    monkeypatch.setattr(web, "build_manager_block", lambda *a, **k: "")
 
     job = client.post("/api/memo/1").json()
     assert "job_id" in job
