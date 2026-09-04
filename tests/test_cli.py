@@ -194,3 +194,14 @@ def test_memo_writes_files(tmp_path, monkeypatch):
     assert (tmp_path / "memos" / "gw3.md").exists()
     saved = json.loads((tmp_path / "memos" / "gw3_suggestions.json").read_text())
     assert saved["scout"]["captain"] == 1
+
+
+def test_fine_all_agents_once_per_gw(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cli.main(["fine", "all", "--gw", "3", "--amount", "1.0", "--reason", "ignored a falling player"])
+    ledger = Ledger.load(tmp_path / "ledger.json")
+    assert ledger.scores() == {"scout": 16.0, "risk": 16.0, "hawk": 16.0}
+    assert len(ledger.penalties()) == 3
+
+    cli.main(["fine", "scout", "--gw", "3", "--amount", "5.0", "--reason", "double"])
+    assert Ledger.load(tmp_path / "ledger.json").scores()["scout"] == 16.0  # no double fine
