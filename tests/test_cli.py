@@ -172,6 +172,7 @@ def test_memo_writes_files(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "LlmClient", lambda: object())
     monkeypatch.setattr(cli, "run_debate", fake_debate)
     monkeypatch.setattr(cli, "get_squad_for_gw", lambda fpl, gw: None)
+    monkeypatch.setattr(cli, "elite_block_for_gw", lambda *a, **k: "")
 
     cli.main(["memo", "--gw", "3"])
 

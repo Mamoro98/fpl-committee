@@ -16,12 +16,14 @@ from committee.cli import (
     LEDGER_PATH,
     MEMOS_DIR,
     build_context,
+    elite_n,
     get_squad_for_gw,
     load_ledger,
 )
 from committee.debate import run_debate
 from committee.draft import run_draft_debate
 from committee.draft_memo import draft_thread, render_draft_memo
+from committee.elite import elite_block_for_gw
 from committee.fpl import FplClient
 from committee.history import build_agent_histories, build_debate_recap
 from committee.llm import LlmClient
@@ -363,6 +365,7 @@ def _do_memo(gw: int) -> dict:
     except httpx.HTTPError:
         fixtures = {}
     context = build_context(players, gw, squad=squad, fixtures=fixtures)
+    context += elite_block_for_gw(fpl, gw, players, MEMOS_DIR, elite_n())
     context += build_debate_recap(gw, MEMOS_DIR, ledger)
     names_lookup = {p.id: p.name for p in players}
     histories = build_agent_histories(fpl, ledger, gw, MEMOS_DIR, names_lookup)

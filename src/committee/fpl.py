@@ -4,6 +4,10 @@ from pydantic import BaseModel
 BOOTSTRAP_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
 LIVE_URL = "https://fantasy.premierleague.com/api/event/{gw}/live/"
 FIXTURES_URL = "https://fantasy.premierleague.com/api/fixtures/?future=1"
+OVERALL_LEAGUE_URL = (
+    "https://fantasy.premierleague.com/api/leagues-classic/314/standings/"
+    "?page_standings={page}"
+)
 PICKS_URL = "https://fantasy.premierleague.com/api/entry/{entry_id}/event/{gw}/picks/"
 
 
@@ -44,6 +48,32 @@ class FplClient:
         response = httpx.get(FIXTURES_URL, timeout=30)
         response.raise_for_status()
         return response.json()
+
+    def _fetch_standings_page(self, page: int) -> dict:
+        response = httpx.get(OVERALL_LEAGUE_URL.format(page=page), timeout=30)
+        response.raise_for_status()
+        return response.json()
+
+    def get_top_entries(self, n: int) -> list[int]:
+        """Entry ids of the top n managers in the overall league, 50 per page."""
+        entries: list[int] = []
+        page = 1
+        while len(entries) < n:
+            data = self._fetch_standings_page(page)
+            results = data["standings"]["results"]
+            entries.extend(r["entry"] for r in results)
+            if not data["standings"].get("has_next") or not results:
+                break
+            page += 1
+        return entries[:n]
+
+    def get_picks_raw(self, entry_id: int, gw: int) -> dict | None:
+        try:
+            return self._fetch_picks(entry_id, gw)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return None
+            raise
 
     def get_team_fixtures(self, limit: int = 3) -> dict[str, list[str]]:
         """Per team: the next `limit` fixtures as 'GW3 BOU (H, diff 2)' strings."""
