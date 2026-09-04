@@ -22,6 +22,7 @@ from committee.fpl import FplClient
 from committee.history import build_agent_histories, build_debate_recap
 from committee.ledger import Ledger
 from committee.llm import LlmClient
+from committee.match_model import match_model_block_for_gw
 from committee.memo import debate_thread, render_memo
 
 LEDGER_PATH = Path("ledger.json")
@@ -152,6 +153,10 @@ def cmd_memo(args) -> None:
         fixtures = {}
     context = build_context(players, args.gw, squad=squad, fixtures=fixtures)
     context += elite_block_for_gw(fpl, args.gw, players, MEMOS_DIR, elite_n())
+    try:
+        context += match_model_block_for_gw(fpl, args.gw)
+    except httpx.HTTPError:
+        pass
     context += build_debate_recap(args.gw, MEMOS_DIR, ledger)
     names_lookup = {p.id: p.name for p in players}
     histories = build_agent_histories(fpl, ledger, args.gw, MEMOS_DIR, names_lookup)
