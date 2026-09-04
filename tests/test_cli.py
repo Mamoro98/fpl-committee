@@ -187,6 +187,7 @@ def test_memo_writes_files(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "get_squad_for_gw", lambda fpl, gw: None)
     monkeypatch.setattr(cli, "elite_block_for_gw", lambda *a, **k: "")
     monkeypatch.setattr(cli, "match_model_block_for_gw", lambda *a, **k: "")
+    monkeypatch.setattr(cli, "build_manager_block", lambda *a, **k: "")
 
     cli.main(["memo", "--gw", "3"])
 

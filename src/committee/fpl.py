@@ -10,6 +10,7 @@ OVERALL_LEAGUE_URL = (
     "?page_standings={page}"
 )
 PICKS_URL = "https://fantasy.premierleague.com/api/entry/{entry_id}/event/{gw}/picks/"
+ENTRY_HISTORY_URL = "https://fantasy.premierleague.com/api/entry/{entry_id}/history/"
 
 
 class Player(BaseModel):
@@ -78,6 +79,12 @@ class FplClient:
             if exc.response.status_code == 404:
                 return None
             raise
+
+    def get_chips_used(self, entry_id: int) -> list[str]:
+        """Chip names already played this season (public entry history)."""
+        response = httpx.get(ENTRY_HISTORY_URL.format(entry_id=entry_id), timeout=30)
+        response.raise_for_status()
+        return [c["name"] for c in response.json().get("chips", [])]
 
     def get_team_strengths(self) -> dict[int, dict]:
         """FPL's overall strength ratings (2 to 5) per team, home and away."""

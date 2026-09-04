@@ -543,7 +543,7 @@ function showTab(tab) {
     ? ' <span style="color:var(--foul); text-transform:none;">(captain auto-fixed: the agent named a player outside the squad)</span>'
     : "");
   $("agentview").innerHTML = `
-    <div class="roundhead">${tab}'s GW${d.gw} team: ${prop.formation}. Out ${prop.transfer_out}, in ${prop.transfer_in}${benchNote}</div>
+    <div class="roundhead">${tab}'s GW${d.gw} team: ${prop.formation}. ${prop.headline || ('Out ' + prop.transfer_out + ', in ' + prop.transfer_in)}${benchNote}</div>
     <div id="agentpitch"></div>${argHtml}`;
   renderPitchInto(document.getElementById("agentpitch"), prop.players, "");
   if (d.can_pick) showPickRow(d.gw, [tab]); else $("pickrow").hidden = true;

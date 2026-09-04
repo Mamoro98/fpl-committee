@@ -11,12 +11,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from committee.agents import AGENTS
+from committee.agents import AGENTS, suggestion_dict, transfers_of
 from committee.cli import (
     LEDGER_PATH,
     MEMOS_DIR,
     build_context,
+    build_manager_block,
     elite_n,
+    free_transfers,
     get_squad_for_gw,
     load_ledger,
 )
@@ -30,6 +32,7 @@ from committee.llm import LlmClient
 from committee.manual import load_manual_squad, resolve_names, save_manual_squad
 from committee.match_model import match_model_block_for_gw
 from committee.memo import debate_thread, render_memo
+from committee.reward import compute_reward
 
 load_dotenv()
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
@@ -129,9 +132,22 @@ def _bench_is_legal(bench: list[int], ids: list[int], lookup) -> bool:
 def build_proposals(squad, lookup, suggestions: dict) -> dict:
     proposals = {}
     for agent, s in suggestions.items():
-        ids = [pid for pid in squad.player_ids if pid != s["transfer_out"]]
-        if s["transfer_in"] not in ids:
-            ids.append(s["transfer_in"])
+        pairs = transfers_of(s)
+        outs = [o for o, _ in pairs]
+        ins = [i for _, i in pairs]
+        violations: list[str] = []
+        if any(o not in squad.player_ids for o in outs):
+            violations.append("sold a player the squad does not own")
+        ids = [pid for pid in squad.player_ids if pid not in outs]
+        for pid in ins:
+            if pid not in ids:
+                ids.append(pid)
+        chip = s.get("chip")
+        cost_in = sum(lookup[i].price for i in ins if i in lookup)
+        cost_out = sum(lookup[o].price for o in outs if o in lookup)
+        if cost_in > cost_out + squad.bank + 1e-9:
+            violations.append(f"over budget by {cost_in - cost_out - squad.bank:.1f}m")
+        hits = 0 if chip in ("wildcard", "freehit") else max(0, len(pairs) - free_transfers())
 
         bench = [pid for pid in (s.get("bench_order") or []) if pid in ids][:4]
         bench_fixed = False
@@ -178,21 +194,35 @@ def build_proposals(squad, lookup, suggestions: dict) -> dict:
                     "slot": 12 + bench.index(pid) if pid in bench else 1,
                     "is_captain": pid == captain,
                     "is_vice": False,
-                    "incoming": pid == s["transfer_in"],
+                    "incoming": pid in ins,
                 }
             )
         starters = [lookup[pid] for pid in ids if pid not in bench and pid in lookup]
+
+        def name(pid):
+            return lookup[pid].name if pid in lookup else str(pid)
+
+        violations += ["illegal bench"] if bench_fixed else []
+        violations += ["captain outside the starting squad"] if captain_fixed else []
+        moves = ", ".join(f"{name(o)} out, {name(i)} in" for o, i in pairs) or "no transfer"
+        headline = moves
+        if hits:
+            plural = "s" if hits > 1 else ""
+            headline += f" ({hits} hit{plural}, -{4 * hits} pts)"
+        if chip:
+            headline += f", chip: {chip}"
         proposals[agent] = {
-            "violations": (
-                (["illegal bench"] if bench_fixed else [])
-                + (["captain outside the starting squad"] if captain_fixed else [])
-            ),
+            "violations": violations,
             "players": players,
             "bench_fixed": bench_fixed,
             "captain_fixed": captain_fixed,
             "formation": _formation(starters),
-            "transfer_out": (lookup[s["transfer_out"]].name if s["transfer_out"] in lookup else s["transfer_out"]),
-            "transfer_in": (lookup[s["transfer_in"]].name if s["transfer_in"] in lookup else s["transfer_in"]),
+            "transfer_out": ", ".join(name(o) for o in outs) or "none",
+            "transfer_in": ", ".join(name(i) for i in ins) or "none",
+            "transfers": [{"out": name(o), "in": name(i)} for o, i in pairs],
+            "chip": chip,
+            "hits": hits,
+            "headline": headline,
         }
     return proposals
 
@@ -371,6 +401,7 @@ def _do_memo(gw: int) -> dict:
         context += match_model_block_for_gw(fpl, gw)
     except httpx.HTTPError:
         pass
+    context += build_manager_block(fpl, gw)
     context += build_debate_recap(gw, MEMOS_DIR, ledger)
     names_lookup = {p.id: p.name for p in players}
     histories = build_agent_histories(fpl, ledger, gw, MEMOS_DIR, names_lookup)
@@ -384,7 +415,7 @@ def _do_memo(gw: int) -> dict:
     (MEMOS_DIR / f"gw{gw}_thread.json").write_text(
         json.dumps(thread, indent=2), encoding="utf-8"
     )
-    suggestions = {agent: s.model_dump() for agent, s in result["final"].items()}
+    suggestions = {agent: suggestion_dict(s) for agent, s in result["final"].items()}
     (MEMOS_DIR / f"gw{gw}_suggestions.json").write_text(
         json.dumps(suggestions, indent=2), encoding="utf-8"
     )
@@ -435,11 +466,12 @@ def settle(gw: int) -> dict:
 
     suggestion = entry["suggestion"]
     points = FplClient().get_gw_points(gw)
-    reward = float(
-        10
-        + points.get(suggestion["transfer_in"], 0)
-        + points.get(suggestion["captain"], 0)
-    )
+    reward, breakdown = compute_reward(suggestion, points, free_transfers())
     ledger.settle(gw=gw, reward=reward)
     ledger.save(LEDGER_PATH)
-    return {"picked": entry["picked"], "reward": reward, "scores": ledger.scores()}
+    return {
+        "picked": entry["picked"],
+        "reward": reward,
+        "breakdown": breakdown,
+        "scores": ledger.scores(),
+    }
